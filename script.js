@@ -125,10 +125,11 @@ fetch(MASTER_GAS_URL, {
     let zoom = window.innerWidth < 800 ? 0.6 : 0.8; 
     let panX = 0, panY = 0;
 
-// 새로운 함수 추가
+// script.js 끝부분에 아래 함수가 있는지 확인하세요!
 function updateRoomSelect(names) {
     const select = document.querySelector('#schedule-form select');
-    select.innerHTML = ''; // 기존 옵션 삭제
+    if (!select) return; // 모달이 닫혀있을 때 방지
+    select.innerHTML = ''; 
     names.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
