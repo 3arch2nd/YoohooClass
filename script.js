@@ -30,7 +30,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
     datePicker.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     updateDateDisplay(datePicker.value);
-    datePicker.addEventListener('change', (e) => updateDateDisplay(e.target.value));
+    // script.js - 기존 날짜 이벤트 리스너 부분을 아래와 같이 수정하세요.
+datePicker.addEventListener('change', (e) => {
+    updateDateDisplay(e.target.value);
+    // 💡 날짜가 바뀌면 서버에서 해당 날짜의 일정 데이터를 새로 불러옵니다.
+    loadScheduleByDate(e.target.value);
+});
+
+// 💡 새로운 함수 추가: 특정 날짜의 일정 불러오기
+function loadScheduleByDate(date) {
+    if (!connectedSheetId) return;
+    
+    showToast(`${date} 일정을 불러오는 중... ⏳`);
+    fetch(MASTER_GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'loadSchedules', sheetId: connectedSheetId, date: date })
+    })
+    .then(res => res.json())
+    .then(result => {
+        // 표 영역을 비우고 새 데이터를 렌더링
+        renderScheduleTable(result.schedules); 
+        showToast('✅ 일정 로드 완료!');
+    })
+    .catch(e => showToast('❌ 일정 로드 실패'));
+}
 
     // 모바일 경고 제어
     const warningLayer = document.getElementById('mobile-warning');
