@@ -104,7 +104,7 @@ fetch(MASTER_GAS_URL, {
     .then(result => {
         if (result.floorData) {
             floorData = result.floorData;
-            currentFloor = Object.keys(floorData).sort((a,b)=>b-a)[0]; 
+            currentFloor = floorData['1'] ? '1' : Object.keys(floorData).sort((a,b)=>a-b)[0];
         }
         
         // 💡 교실 목록이 있다면 드롭다운 갱신
@@ -140,22 +140,36 @@ function updateRoomSelect(names) {
     
 // script.js
 function updateTransform() {
-    // 💡 줌 레벨에 따라 가동 범위 계산
-    // 줌이 커지면 이동 범위가 줄어들어야 건물이 화면에 고정됩니다.
-    const limit = 2000 * zoom; 
+    // 💡 건물이 화면 밖으로 이탈하지 않도록 범위 제한 (그리드 크기 80*40 = 3200px 기준)
+    const padding = 200; // 여백
+    const limitX = (80 * 40 * zoom) / 2 - padding;
+    const limitY = (80 * 40 * zoom) / 2 - padding;
     
-    panX = Math.max(-limit, Math.min(limit, panX));
-    panY = Math.max(-limit, Math.min(limit, panY));
+    panX = Math.max(-limitX, Math.min(limitX, panX));
+    panY = Math.max(-limitY, Math.min(limitY, panY));
     
     floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
 }
 
     scrollArea.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        zoom = Math.min(Math.max(0.4, zoom + delta), 2.5); 
-        updateTransform();
-    }, { passive: false });
+    e.preventDefault();
+    
+    // 마우스 위치 기준 줌 계산
+    const rect = scrollArea.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - rect.width / 2;
+    const mouseY = e.clientY - rect.top - rect.height / 2;
+    
+    const prevZoom = zoom;
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoom = Math.min(Math.max(0.4, zoom + delta), 2.5);
+    
+    // 줌 확대 시 마우스 위치 유지
+    panX -= (mouseX / prevZoom) * (zoom - prevZoom);
+    panY -= (mouseY / prevZoom) * (zoom - prevZoom);
+    
+    updateTransform();
+}, { passive: false });
+
 
     let isPanning = false;
     let panStartX, panStartY;
