@@ -1,6 +1,7 @@
 // script.js
 document.addEventListener('DOMContentLoaded', () => {
-    const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbzrrvuMcbPhOpAVfrSAPZkGaUTN7J8oUSvpRcvF0omp6888A9Q4NXKHOnmaklSvEn5SxA/exec';
+    // 💡 1. 마스터 GAS 주소 입력
+    const MASTER_GAS_URL = 'https://docs.google.com/spreadsheets/d/11wbMwMF0TvN188sHTboUi8XlckkCePHmmTlmLQ4X2t0/edit?usp=drive_link';
 
     const urlParams = new URLSearchParams(window.location.search);
     const connectedSheetId = urlParams.get('sheet');
@@ -13,113 +14,140 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match) {
                 window.location.href = window.location.origin + window.location.pathname + '?sheet=' + match[1];
             } else {
-                alert('올바른 구글 시트 주소가 아닙니다. 주소를 다시 확인해 주세요.');
+                alert('올바른 구글 시트 주소가 아닙니다.');
             }
         });
     }
 
+    // 날짜 세팅 로직
     const datePicker = document.getElementById('current-date');
     const formattedDateText = document.getElementById('formatted-date');
-    
     function updateDateDisplay(dateString) {
         const d = new Date(dateString);
         if (isNaN(d.getTime())) return;
         const days = ['일', '월', '화', '수', '목', '금', '토'];
         formattedDateText.textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]}요일)`;
     }
-
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    datePicker.value = `${yyyy}-${mm}-${dd}`;
+    datePicker.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     updateDateDisplay(datePicker.value);
     datePicker.addEventListener('change', (e) => updateDateDisplay(e.target.value));
 
+    // 모바일 경고 제어
     const warningLayer = document.getElementById('mobile-warning');
     const closeWarningBtn = document.getElementById('close-warning-btn');
     if (closeWarningBtn) closeWarningBtn.addEventListener('click', () => warningLayer.style.display = 'none');
 
+    // 공통 모달
     let confirmCallback = null;
     const confirmModal = document.getElementById('confirm-modal');
     const confirmMessage = document.getElementById('confirm-message');
-    
     function showConfirmModal(message, callback) {
         confirmMessage.textContent = message;
         confirmCallback = callback;
         confirmModal.classList.remove('hidden');
     }
+    document.getElementById('confirm-cancel-btn').addEventListener('click', () => { confirmModal.classList.add('hidden'); confirmCallback = null; });
+    document.getElementById('confirm-ok-btn').addEventListener('click', () => { confirmModal.classList.add('hidden'); if (confirmCallback) { confirmCallback(); confirmCallback = null; } });
 
-    document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
-        confirmModal.classList.add('hidden');
-        confirmCallback = null;
-    });
-    document.getElementById('confirm-ok-btn').addEventListener('click', () => {
-        confirmModal.classList.add('hidden');
-        if (confirmCallback) { confirmCallback(); confirmCallback = null; }
-    });
-
+    // === 💡 데이터 구조 및 동기화 로직 ===
     let currentFloor = '3';
     let floorData = {
         '1': [], '2': [],
         '3': [
-            { col: 17, row: 14, w: 2, h: 2, name: '방송실', info: '유휴 공간 아님', status: 'status-unavailable' },
-            { col: 19, row: 14, w: 2, h: 2, name: '3학년 1반', info: '1,4교시 (수업중)', status: 'status-full' },
-            { col: 21, row: 14, w: 2, h: 2, name: '과학실', info: '3~4교시 비어있음', status: 'status-partial' },
-            { col: 17, row: 17, w: 3, h: 2, name: '유휴교실 A', info: '종일 비어있음', status: 'status-empty' }
+            { col: 18, row: 14, w: 2, h: 2, name: '예시 교실', info: '종일 비어있음', status: 'status-empty' }
         ]
     };
 
     const floorGrid = document.getElementById('floor-plan-grid');
     const floorListContainer = document.getElementById('floor-list');
     const floorLabel = document.getElementById('current-floor-label');
+    const scrollArea = document.querySelector('.floor-plan-scroll-area');
 
-    function centerCamera() {
-        const rooms = Array.from(floorGrid.querySelectorAll('.room'));
-        if (rooms.length === 0) {
-            floorGrid.style.transform = 'translate(-50%, -50%)';
-            floorGrid.style.marginLeft = '0';
-            floorGrid.style.marginTop = '0';
+    // 🚀 서버로 데이터 동기화
+    function syncRoomsToGas() {
+        if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) return;
+        fetch(MASTER_GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'saveRooms', sheetId: connectedSheetId, floorData: floorData })
+        }).catch(e => console.error('평면도 자동 저장 실패'));
+    }
+
+    // 🚀 서버에서 데이터 불러오기 (초기 1회)
+    function loadRoomsFromGas() {
+        if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
+            renderFloor(currentFloor); // 로컬 기본 데이터로 시작
             return;
         }
-        let minCol = Infinity, minRow = Infinity;
-        let maxColEnd = -Infinity, maxRowEnd = -Infinity;
-        rooms.forEach(room => {
-            const style = window.getComputedStyle(room);
-            const colStart = parseInt(style.gridColumnStart);
-            const rowStart = parseInt(style.gridRowStart);
-            const w = parseInt(style.gridColumn.match(/span\s+(\d+)/)?.[1] || 2);
-            const h = parseInt(style.gridRow.match(/span\s+(\d+)/)?.[1] || 2);
-            if (!isNaN(colStart) && colStart < minCol) minCol = colStart;
-            if (!isNaN(rowStart) && rowStart < minRow) minRow = rowStart;
-            if (!isNaN(colStart) && colStart + w > maxColEnd) maxColEnd = colStart + w;
-            if (!isNaN(rowStart) && rowStart + h > maxRowEnd) maxRowEnd = rowStart + h;
-        });
-        const CELL_SIZE = 44; 
-        const centerCol = (minCol + maxColEnd) / 2;
-        const centerRow = (minRow + maxRowEnd) / 2;
-        const centerX_px = (centerCol - 1) * CELL_SIZE;
-        const centerY_px = (centerRow - 1) * CELL_SIZE;
-        floorGrid.style.transform = 'none'; 
-        floorGrid.style.marginLeft = `-${centerX_px}px`; 
-        floorGrid.style.marginTop = `-${centerY_px}px`;
-    }
-
-    function saveCurrentFloor() {
-        const rooms = Array.from(floorGrid.querySelectorAll('.room'));
-        floorData[currentFloor] = rooms.map(room => {
-            const colStart = parseInt(room.style.gridColumnStart) || 1;
-            const rowStart = parseInt(room.style.gridRowStart) || 1;
-            const w = parseInt(room.style.gridColumn.match(/span\s+(\d+)/)?.[1] || 2);
-            const h = parseInt(room.style.gridRow.match(/span\s+(\d+)/)?.[1] || 2);
-            let status = 'status-empty';
-            if (room.classList.contains('status-unavailable')) status = 'status-unavailable';
-            else if (room.classList.contains('status-partial')) status = 'status-partial';
-            else if (room.classList.contains('status-full')) status = 'status-full';
-            return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: room.querySelector('.room-info').textContent, status };
+        showToast('서버에서 건물을 불러오는 중...');
+        fetch(MASTER_GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.floorData && Object.keys(result.floorData).length > 0) {
+                floorData = result.floorData;
+                currentFloor = Object.keys(floorData).sort((a,b)=>b-a)[0]; // 가장 높은 층으로 맞춤
+            } else {
+                syncRoomsToGas(); // 시트가 비어있으면 초기 예시 데이터를 서버에 저장해 둠
+            }
+            renderFloor(currentFloor);
+            showToast('데이터 로드 완료!');
+        })
+        .catch(e => {
+            showToast('불러오기 실패. 기본 데이터로 시작합니다.');
+            renderFloor(currentFloor);
         });
     }
 
+    // 💡 화면 줌(Zoom) 및 팬(Pan) 상태
+    let zoom = window.innerWidth < 800 ? 0.6 : 0.8; // 작은 화면이면 작게 시작
+    let panX = 0, panY = 0;
+
+    function updateTransform() {
+        // 화면이 너무 멀리 날아가지 않게 한계 지정
+        panX = Math.max(-1200, Math.min(1200, panX));
+        panY = Math.max(-1000, Math.min(1000, panY));
+        floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
+    }
+
+    // 휠로 줌인/줌아웃 🚀
+    scrollArea.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        zoom = Math.min(Math.max(0.4, zoom + delta), 2.5); // 0.4배 ~ 2.5배 제한
+        updateTransform();
+    }, { passive: false });
+
+    // 빈 공간 잡고 드래그하여 화면 이동 (Panning) 🚀
+    let isPanning = false;
+    let panStartX, panStartY;
+    
+    scrollArea.addEventListener('pointerdown', (e) => {
+        // 교실(room)을 클릭한 거라면 방 이동 로직에 맡김
+        const room = e.target.closest('.room');
+        if (room && !room.classList.contains('onion-skin-room') && floorGrid.classList.contains('edit-mode')) return;
+        
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        scrollArea.setPointerCapture(e.pointerId);
+    });
+
+    scrollArea.addEventListener('pointermove', (e) => {
+        if (!isPanning) return;
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateTransform();
+    });
+
+    scrollArea.addEventListener('pointerup', (e) => {
+        isPanning = false;
+        scrollArea.releasePointerCapture(e.pointerId);
+    });
+
+    // 화면 렌더링 로직
     function renderFloor(floorNum) {
         floorGrid.innerHTML = ''; 
         const rooms = floorData[floorNum] || [];
@@ -133,9 +161,53 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         floorLabel.textContent = `(${floorNum}F)`;
         renderFloorButtons();
-        centerCamera(); 
+        renderOnionSkin(); // 💡 렌더링 후 어니언스킨 업데이트
+        updateTransform(); 
     }
 
+    // 💡 아래층 투영 (Onion Skin) 렌더링 로직 🐛
+    function renderOnionSkin() {
+        // 기존 그림자 방 지우기
+        floorGrid.querySelectorAll('.onion-skin-room').forEach(el => el.remove());
+        
+        // 편집 모드가 아니면 비추지 않음
+        if (!floorGrid.classList.contains('edit-mode')) return;
+
+        const floors = Object.keys(floorData).sort((a, b) => a - b);
+        const currentIndex = floors.indexOf(currentFloor);
+        
+        // 현재 층 아래에 층이 존재한다면
+        if (currentIndex > 0) {
+            const belowFloor = floors[currentIndex - 1];
+            const belowRooms = floorData[belowFloor] || [];
+            
+            belowRooms.forEach(data => {
+                const ghost = document.createElement('div');
+                ghost.className = 'room onion-skin-room';
+                ghost.style.gridColumn = `${data.col} / span ${data.w}`;
+                ghost.style.gridRow = `${data.row} / span ${data.h}`;
+                ghost.innerHTML = `<div class="room-name" style="font-size:11px;">(${belowFloor}F) ${data.name}</div>`;
+                floorGrid.appendChild(ghost);
+            });
+        }
+    }
+
+    function saveCurrentFloor() {
+        const rooms = Array.from(floorGrid.querySelectorAll('.room:not(.onion-skin-room)'));
+        floorData[currentFloor] = rooms.map(room => {
+            const colStart = parseInt(room.style.gridColumnStart) || 1;
+            const rowStart = parseInt(room.style.gridRowStart) || 1;
+            const w = parseInt(room.style.gridColumn.match(/span\s+(\d+)/)?.[1] || 2);
+            const h = parseInt(room.style.gridRow.match(/span\s+(\d+)/)?.[1] || 2);
+            let status = 'status-empty';
+            if (room.classList.contains('status-unavailable')) status = 'status-unavailable';
+            else if (room.classList.contains('status-partial')) status = 'status-partial';
+            else if (room.classList.contains('status-full')) status = 'status-full';
+            return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: room.querySelector('.room-info').textContent, status };
+        });
+    }
+
+    // 네비게이션
     function renderFloorButtons() {
         floorListContainer.innerHTML = '';
         const manageBtn = document.createElement('button');
@@ -158,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveCurrentFloor(); 
                     currentFloor = floor;
                     renderFloor(currentFloor); 
-                    showToast(`${floor}층 평면도를 불러왔습니다.`);
                 }
             });
             floorListContainer.appendChild(btn);
@@ -176,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         floorData[nextFloor] = []; 
         currentFloor = nextFloor;
         renderFloor(currentFloor);
+        syncRoomsToGas(); // 💡 층 추가 시 자동 저장
         floorManageModal.classList.add('hidden');
         showToast(`${nextFloor}층이 추가되었습니다.`);
     });
@@ -192,12 +264,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentFloor = remainingFloors[0];
             }
             renderFloor(currentFloor);
+            syncRoomsToGas(); // 💡 층 삭제 시 자동 저장
             floorManageModal.classList.add('hidden');
             showToast(`${topFloorStr}층이 삭제되었습니다.`);
         });
     });
-
-    renderFloor(currentFloor);
 
     const editToggle = document.getElementById('edit-mode-toggle');
     const editControls = document.getElementById('edit-controls');
@@ -205,18 +276,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.checked) {
             floorGrid.classList.add('edit-mode');
             editControls.classList.remove('hidden');
+            renderOnionSkin(); // 💡 켜면 즉시 투영
             showToast('편집 모드가 활성화되었습니다.');
         } else {
             floorGrid.classList.remove('edit-mode');
             editControls.classList.add('hidden');
             saveCurrentFloor();
-            showToast('편집 모드가 종료되었습니다.');
+            renderOnionSkin(); // 💡 끄면 즉시 투영 제거
+            syncRoomsToGas(); // 💡 편집 모드 종료 시 서버 저장
+            showToast('배치가 저장되었습니다.');
         }
     });
 
     document.getElementById('add-room-btn').addEventListener('click', () => {
         const w = 2, h = 2; 
-        const rooms = Array.from(floorGrid.querySelectorAll('.room'));
+        const rooms = Array.from(floorGrid.querySelectorAll('.room:not(.onion-skin-room)'));
         let targetCol = 18, targetRow = 14;
         if (rooms.length > 0) {
             let minCol = Infinity, minRow = Infinity, maxColEnd = -Infinity, maxRowEnd = -Infinity;
@@ -240,25 +314,31 @@ document.addEventListener('DOMContentLoaded', () => {
         newRoom.style.gridRow = `${targetRow} / span ${h}`;
         newRoom.innerHTML = `<div class="room-edit-btn">✏️</div><div class="room-name">새 교실</div><div class="room-info">종일 비어있음</div>`;
         floorGrid.appendChild(newRoom);
-        centerCamera(); 
-        showToast('새 교실이 추가되었습니다.');
+        showToast('새 교실이 추가되었습니다. (수정 완료 후 편집 모드를 끄면 자동 저장됩니다)');
     });
 
+    // 💡 교실 드래그 앤 드롭 로직 (줌 비율 보정 추가 🚀)
     const CELL_SIZE = 44; 
     let isDragging = false, isResizing = false, activeRoom = null;
     let startX, startY, startCol, startRow, startColSpan, startRowSpan;
 
     floorGrid.addEventListener('pointerdown', (e) => {
         if (!floorGrid.classList.contains('edit-mode')) return;
-        const room = e.target.closest('.room');
+        const room = e.target.closest('.room:not(.onion-skin-room)');
         if (!room) return;
         if (e.target.closest('.room-edit-btn')) return;
+        
+        // 클릭이 방 드래그용인지 확인 (팬 방지)
+        e.stopPropagation();
+
         const rect = room.getBoundingClientRect();
         const isCorner = (e.clientX > rect.right - 20) && (e.clientY > rect.bottom - 20);
+        
         activeRoom = room; startX = e.clientX; startY = e.clientY;
         startCol = parseInt(room.style.gridColumnStart); startRow = parseInt(room.style.gridRowStart);
         startColSpan = parseInt(room.style.gridColumn.match(/span\s+(\d+)/)?.[1] || 2); 
         startRowSpan = parseInt(room.style.gridRow.match(/span\s+(\d+)/)?.[1] || 2);
+        
         if (isCorner) isResizing = true;
         else { isDragging = true; room.style.opacity = '0.7'; room.style.zIndex = '100'; }
         room.setPointerCapture(e.pointerId);
@@ -266,8 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     floorGrid.addEventListener('pointermove', (e) => {
         if (!activeRoom) return;
-        const dCols = Math.round((e.clientX - startX) / CELL_SIZE);
-        const dRows = Math.round((e.clientY - startY) / CELL_SIZE);
+        
+        // 💡 줌 비율만큼 마우스 이동 거리를 보정해 주어야 커서와 방이 일치합니다.
+        const dCols = Math.round(((e.clientX - startX) / zoom) / CELL_SIZE);
+        const dRows = Math.round(((e.clientY - startY) / zoom) / CELL_SIZE);
+        
         if (isDragging) {
             activeRoom.style.gridColumn = `${Math.max(1, startCol + dCols)} / span ${startColSpan}`;
             activeRoom.style.gridRow = `${Math.max(1, startRow + dRows)} / span ${startRowSpan}`;
@@ -282,7 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
         activeRoom.releasePointerCapture(e.pointerId);
         activeRoom.style.opacity = '1'; activeRoom.style.zIndex = '';
         activeRoom = null; isDragging = false; isResizing = false;
-        centerCamera(); 
     });
 
     const roomEditModal = document.getElementById('room-edit-modal');
@@ -320,18 +402,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if(infoEl) infoEl.textContent = '유휴 공간 아님';
         }
         roomEditModal.classList.add('hidden'); editingRoomElement = null;
-        saveCurrentFloor(); showToast('교실 설정이 변경되었습니다.');
     });
 
     document.getElementById('delete-room-btn').addEventListener('click', () => {
         if (!editingRoomElement) return;
         showConfirmModal('정말 이 교실을 삭제하시겠습니까?', () => {
             editingRoomElement.remove(); roomEditModal.classList.add('hidden');
-            editingRoomElement = null; saveCurrentFloor(); centerCamera(); 
+            editingRoomElement = null; 
             showToast('교실이 삭제되었습니다.');
         });
     });
 
+    // === 일정 로직 ===
     const addBtn = document.getElementById('add-schedule-btn');
     const modal = document.getElementById('schedule-modal');
     const closeBtn = document.getElementById('close-modal-btn');
@@ -351,11 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     addBtn.addEventListener('click', () => {
-        if (!connectedSheetId) showToast('경고: 우측 상단 [설정]에서 시트를 먼저 연결해주세요.');
         modalStartDate.value = datePicker.value;
         modal.classList.remove('hidden');
     });
-    
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden'); form.reset(); repeatEndGroup.classList.add('hidden');
     });
@@ -376,10 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (!connectedSheetId || MASTER_GAS_URL.includes('여기에_마스터_주소')) {
-            modal.classList.add('hidden');
-            showToast(`[시트 미연결 테스트] 일정이 기록되었습니다.`);
-            form.reset(); repeatEndGroup.classList.add('hidden');
-            return;
+            modal.classList.add('hidden'); showToast(`[시트 미연결] 일정이 기록되었습니다.`);
+            form.reset(); repeatEndGroup.classList.add('hidden'); return;
         }
 
         showToast('서버에 일정을 저장하는 중...');
@@ -401,44 +479,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showConfirmModal(`[${roomName}]의 '${purpose}' 일정을 삭제하시겠습니까?`, () => {
                 if (!connectedSheetId || MASTER_GAS_URL.includes('여기에_마스터_주소')) {
-                    row.remove();
-                    showToast('일정이 삭제되었습니다. (시트 미연결)');
-                    return;
+                    row.remove(); showToast('일정이 삭제되었습니다.'); return;
                 }
-
                 showToast('서버에서 일정을 삭제하는 중...');
                 fetch(MASTER_GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify({
-                        action: 'deleteSchedule',
-                        sheetId: connectedSheetId,
-                        date: targetDate,
-                        room: roomName,
-                        purpose: purpose
-                    })
-                })
-                .then(response => response.json())
-                .then(result => {
-                    row.remove(); 
-                    showToast(result.message);
-                })
-                .catch(error => {
-                    showToast('삭제 실패: 네트워크 오류가 발생했습니다.');
-                });
+                    body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, purpose: purpose })
+                }).then(response => response.json()).then(result => {
+                    row.remove(); showToast(result.message);
+                }).catch(error => showToast('삭제 실패: 네트워크 오류가 발생했습니다.'));
             });
         }
     });
 
-    // === 💡 개선: 설정(Settings) 모달 상태 관리 ===
     const settingsModal = document.getElementById('settings-modal');
     const openSettingsBtn = document.getElementById('open-settings-btn');
     const closeSettingsBtn = document.getElementById('close-settings-btn');
-    
-    // 뷰(View) 요소들
     const settingsUnconnectedView = document.getElementById('settings-unconnected-view');
     const settingsConnectedView = document.getElementById('settings-connected-view');
-    
-    // 버튼 및 입력 요소들
     const generateLinkBtn = document.getElementById('generate-link-btn');
     const sheetUrlInput = document.getElementById('sheet-url-input');
     const shareLinkGroup = document.getElementById('share-link-group');
@@ -452,54 +510,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     openSettingsBtn.addEventListener('click', () => {
-        // 🚀 연결 여부에 따라 보여주는 뷰(화면)를 똑똑하게 바꿉니다.
         if (connectedSheetId) {
-            settingsConnectedView.classList.remove('hidden');
-            settingsUnconnectedView.classList.add('hidden');
+            settingsConnectedView.classList.remove('hidden'); settingsUnconnectedView.classList.add('hidden');
         } else {
-            settingsConnectedView.classList.add('hidden');
-            settingsUnconnectedView.classList.remove('hidden');
+            settingsConnectedView.classList.add('hidden'); settingsUnconnectedView.classList.remove('hidden');
         }
         settingsModal.classList.remove('hidden');
     });
 
     closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
-    // 미연결 상태: 새 링크 생성
     generateLinkBtn.addEventListener('click', () => {
         const inputUrl = sheetUrlInput.value.trim();
         const extractedId = extractSheetId(inputUrl);
         if (!extractedId) { showToast('올바른 구글 시트 주소가 아닙니다.'); return; }
-        
         const baseUrl = window.location.origin + window.location.pathname;
-        const newShareLink = `${baseUrl}?sheet=${extractedId}`;
-        
-        shareLinkInput.value = newShareLink;
+        shareLinkInput.value = `${baseUrl}?sheet=${extractedId}`;
         shareLinkGroup.classList.remove('hidden');
         showToast('전용 접속 링크가 생성되었습니다!');
     });
 
-    // 연결 상태: 클립보드 복사 로직 🚀
     copyLinkBox.addEventListener('click', () => {
         const currentUrl = window.location.href;
-        navigator.clipboard.writeText(currentUrl).then(() => {
-            showToast('링크가 복사되었습니다!');
-        }).catch(err => {
-            // 구형 브라우저를 위한 백업 복사 방식
-            const dummy = document.createElement('input');
-            document.body.appendChild(dummy);
-            dummy.value = currentUrl;
-            dummy.select();
-            document.execCommand('copy');
-            document.body.removeChild(dummy);
-            showToast('링크가 복사되었습니다!');
+        navigator.clipboard.writeText(currentUrl).then(() => showToast('링크가 복사되었습니다!'))
+        .catch(err => {
+            const dummy = document.createElement('input'); document.body.appendChild(dummy);
+            dummy.value = currentUrl; dummy.select(); document.execCommand('copy');
+            document.body.removeChild(dummy); showToast('링크가 복사되었습니다!');
         });
     });
 
-    // 연결 상태: '새로운 시트 연결하기' 버튼 클릭 시 뷰 전환 🐛
     showNewConnectBtn.addEventListener('click', () => {
-        settingsConnectedView.classList.add('hidden');
-        settingsUnconnectedView.classList.remove('hidden');
+        settingsConnectedView.classList.add('hidden'); settingsUnconnectedView.classList.remove('hidden');
     });
 
     let toastTimeout; 
@@ -507,13 +549,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('toast-container');
         let toast = container.querySelector('.toast');
         if (!toast) {
-            toast = document.createElement('div');
-            toast.className = 'toast';
-            container.appendChild(toast);
+            toast = document.createElement('div'); toast.className = 'toast'; container.appendChild(toast);
         }
-        toast.textContent = message;
-        toast.style.opacity = '1';
+        toast.textContent = message; toast.style.opacity = '1';
         if (toastTimeout) clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
+
+    // 🚀 앱 실행 시 초기 데이터 로드 호출
+    loadRoomsFromGas();
 });
