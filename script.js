@@ -96,22 +96,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         showToast('서버에서 건물 도면을 불러오는 중... ⏳');
-        fetch(MASTER_GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
-        })
-        .then(res => res.json())
-        .then(result => {
-            if (result.floorData && Object.keys(result.floorData).length > 0) {
-                floorData = result.floorData;
-                currentFloor = Object.keys(floorData).sort((a,b)=>b-a)[0]; 
-            } else {
-                syncRoomsToGas(); // 시트가 비어있으면 초기 예시 데이터를 서버에 덮어씀
-            }
-            updateRoomSelect(result.roomNames);
-            renderFloor(currentFloor);
-            showToast('✅ 데이터 로드 완료!');
-        })
+fetch(MASTER_GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.floorData) {
+            floorData = result.floorData;
+            currentFloor = Object.keys(floorData).sort((a,b)=>b-a)[0]; 
+        }
+        
+        // 💡 교실 목록이 있다면 드롭다운 갱신
+        if (result.roomList) {
+            updateRoomSelect(result.roomList);
+        }
+        
+        renderFloor(currentFloor);
+        showToast('✅ 데이터 로드 완료!');
+    })
+
         .catch(e => {
             showToast('⚠️ 불러오기 실패. 기본 데이터로 시작합니다.');
             renderFloor(currentFloor);
