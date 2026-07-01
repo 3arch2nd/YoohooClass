@@ -120,11 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let zoom = window.innerWidth < 800 ? 0.6 : 0.8; 
     let panX = 0, panY = 0;
 
-    function updateTransform() {
-        panX = Math.max(-1200, Math.min(1200, panX));
-        panY = Math.max(-1000, Math.min(1000, panY));
-        floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
-    }
+function updateTransform() {
+    panX = Math.max(-2000, Math.min(2000, panX));
+    panY = Math.max(-2000, Math.min(2000, panY));
+    floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
+}
 
     scrollArea.addEventListener('wheel', (e) => {
         e.preventDefault();
