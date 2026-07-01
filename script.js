@@ -617,6 +617,24 @@ function updateTransform() {
         toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
 
+    // script.js - 표 렌더링 함수
+function renderScheduleTable(schedules) {
+    const tbody = document.getElementById('schedule-tbody');
+    tbody.innerHTML = '';
+    
+    schedules.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${currentFloor}층</td>
+            <td>${item.room}</td>
+            <td>${item.periods}</td>
+            <td>${item.purpose}</td>
+            <td><button class="delete-schedule-btn">삭제</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
 });
