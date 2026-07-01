@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교내 공간 관리 시스템</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="mobile-warning" class="mobile-warning">
+        <div class="warning-content">
+            <h2>PC 환경 권장</h2>
+            <p>평면도 편집 및 상세 일정 관리 등 특정 기능은 넓은 화면에서 원활하게 사용 가능합니다.</p>
+            <button id="close-warning-btn">그래도 화면 보기</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- 네비게이션 -->
+        <nav class="floor-nav">
+            <div class="nav-header">건물/층</div>
+            <div id="floor-list" class="floor-list"></div>
+            <button class="settings-btn" id="open-settings-btn">설정</button>
+        </nav>
+
+        <!-- 평면도 영역 -->
+        <main class="floor-plan-section">
+            <header class="section-header">
+                <h2>평면도 <span id="current-floor-label"></span></h2>
+                
+                <div class="edit-controls hidden" id="edit-controls">
+                    <button id="add-room-btn">방 추가</button>
+                </div>
+
+                <label class="edit-toggle">
+                    <input type="checkbox" id="edit-mode-toggle">
+                    <span class="toggle-label">평면도 편집 모드</span>
+                </label>
+            </header>
+            
+            <div class="floor-plan-scroll-area">
+                <div class="floor-plan-grid" id="floor-plan-grid"></div>
+            </div>
+
+            <button class="fab" id="add-schedule-btn">+</button>
+        </main>
+
+        <!-- 표 영역 -->
+        <aside class="schedule-section">
+            <header class="section-header date-header">
+                <input type="date" class="date-picker" id="current-date">
+                <span id="formatted-date" class="formatted-date-text"></span>
+            </header>
+            <div class="table-container">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>층수</th>
+                            <th>교실</th>
+                            <th>교시</th>
+                            <th>사용자(목적)</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-tbody">
+                        <!-- JS에서 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 모달: 일정 추가 -->
+    <div id="schedule-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">일정 추가</h3>
+            <form id="schedule-form">
+                <div class="form-group">
+                    <label>교실 선택</label>
+                    <select><option>유휴교실 A</option><option>과학실</option></select>
+                </div>
+                <div class="form-group">
+                    <label>사용 날짜 (시작일)</label>
+                    <input type="date" id="modal-start-date" required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-inline-label">
+                        <input type="checkbox" id="repeat-toggle"> 매주 요일 반복 설정
+                    </label>
+                </div>
+                <div class="form-group hidden" id="repeat-end-group">
+                    <label>반복 종료 날짜</label>
+                    <input type="date" id="modal-end-date">
+                </div>
+                <div class="form-group">
+                    <label>사용 교시 (다중 선택)</label>
+                    <div class="period-checkbox-group">
+                        <label class="period-label"><input type="checkbox" name="period" value="1"> 1교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="2"> 2교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="3"> 3교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="4"> 4교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="5"> 5교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="6"> 6교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="7"> 7교시</label>
+                        <label class="period-label"><input type="checkbox" name="period" value="8"> 8교시</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>사용 목적 / 사용자</label>
+                    <input type="text" id="schedule-purpose" placeholder="예: 방과후 영어" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="close-modal-btn">취소</button>
+                    <button type="submit" class="btn-submit">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 모달: 교실 편집 -->
+    <div id="room-edit-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>교실 편집</h3>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>교실 이름</label>
+                <input type="text" id="edit-room-name" placeholder="예: 3학년 1반">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-inline-label">
+                    <input type="checkbox" id="edit-room-idle" checked> 유휴 공간 (체크 해제 시 사용 불가)
+                </label>
+            </div>
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button type="button" class="btn-cancel" id="delete-room-btn" style="background: #ef4444; color: white;">삭제</button>
+                <div>
+                    <button type="button" class="btn-cancel" id="close-room-edit-btn">취소</button>
+                    <button type="button" class="btn-submit" id="save-room-edit-btn">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 층 관리 -->
+    <div id="floor-manage-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 320px;">
+            <h3>건물 층 관리</h3>
+            <p style="font-size: 13px; color: var(--text-light); margin: 10px 0 20px 0;">건물의 최상단 층을 추가하거나 삭제합니다.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" class="btn-submit" id="modal-add-floor-btn" style="padding: 12px;">+ 최상단 층 추가</button>
+                <button type="button" class="btn-cancel" id="modal-delete-floor-btn" style="padding: 12px; background: #fee2e2; color: #ef4444; font-weight: bold;">- 최상단 층 삭제</button>
+            </div>
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button type="button" class="btn-cancel" id="close-floor-manage-btn" style="width: 100%;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 공통 모달: 확인창 -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 15px;">확인</h3>
+            <p id="confirm-message" style="font-size: 14px; margin-bottom: 25px; word-break: keep-all; line-height: 1.4; color: var(--text-main);"></p>
+            <div class="modal-actions" style="justify-content: center; gap: 10px; margin-top: 0;">
+                <button type="button" class="btn-cancel" id="confirm-cancel-btn">취소</button>
+                <button type="button" class="btn-submit" id="confirm-ok-btn" style="background: #ef4444;">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💡 수정된 모달: 시스템 설정 (뷰 분리) -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 450px;">
+            <h3 style="margin-bottom: 20px;">시스템 설정 (구글 시트 연결)</h3>
+            
+            <!-- 1. 미연결 상태 뷰 (초기 설정용) -->
+            <div id="settings-unconnected-view">
+                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 20px; line-height: 1.4;">
+                    1. 새로 만든 구글 시트의 [공유] 설정에서 <strong>'일반 액세스'를 '링크가 있는 모든 사용자' 및 '편집자'</strong>로 변경해주세요.<br>
+                    2. 해당 구글 시트의 웹 주소를 아래에 붙여넣으면 전용 접속 링크가 생성됩니다.
+                </p>
+                <div class="form-group">
+                    <label>구글 시트 웹 주소 (URL)</label>
+                    <input type="text" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/1A2B3C.../edit">
+                </div>
+                <button type="button" class="btn-submit" id="generate-link-btn" style="width: 100%; margin-bottom: 15px;">전용 접속 링크 생성하기</button>
+                <div class="form-group hidden" id="share-link-group">
+                    <label>공유용 전용 링크 (교직원 배포용)</label>
+                    <input type="text" id="share-link-input" readonly style="background-color: #f3f4f6; color: #4b5563; font-size: 11px;">
+                    <p style="font-size: 11px; color: var(--primary); margin-top: 5px;">* 이 링크로 접속해야만 우리 학교 시트에 데이터가 기록됩니다.</p>
+                </div>
+            </div>
+
+            <!-- 2. 연결된 상태 뷰 (공유 및 갱신용) -->
+            <div id="settings-connected-view" class="hidden">
+                <p style="font-size: 13px; color: #10b981; margin-bottom: 20px; font-weight: bold; text-align: center;">✅ 현재 학교 시트가 안전하게 연결되어 있습니다.</p>
+                
+                <div class="form-group">
+                    <label>현재 시트 접속 링크 공유하기</label>
+                    <div id="copy-link-box" class="copy-link-box">
+                        🔗 여기를 클릭하여 접속 링크 복사하기
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 25px 0;">
+
+                <div class="form-group">
+                    <label>새 학기 갱신 / 관리자 변경</label>
+                    <p style="font-size: 11px; color: var(--text-light); margin-bottom: 10px; line-height: 1.4;">
+                        * 기존 데이터 보존을 위해 현재 사용 중인 구글 시트의 <strong>사본을 생성</strong>한 뒤, 그 사본의 주소를 새롭게 연결해 주세요.
+                    </p>
+                    <button type="button" class="btn-cancel" id="show-new-connect-btn" style="width: 100%; border: 1px solid var(--border-color); color: var(--text-main);">새로운 시트 연결하기</button>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button type="button" class="btn-cancel" id="close-settings-btn" style="width: 100%;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최초 접속 시 강제 연결 모달 -->
+    <div id="welcome-overlay" class="modal-overlay hidden" style="z-index: 9999; background: rgba(0,0,0,0.7);">
+        <div class="modal-content" style="width: 450px; text-align: center;">
+            <h2 style="margin-bottom: 10px; color: var(--primary);">환영합니다! 🏫</h2>
+            <p style="font-size: 13px; color: var(--text-main); margin-bottom: 20px; line-height: 1.5; word-break: keep-all;">
+                데이터가 유실되지 않도록 작업을 시작하기 전<br>우리 학교의 <strong>구글 시트</strong>를 먼저 연결해 주세요.
+            </p>
+            <div class="form-group" style="text-align: left;">
+                <label>구글 시트 웹 주소 (URL)</label>
+                <input type="text" id="welcome-sheet-url" placeholder="공유 권한이 설정된 시트 주소 입력">
+                <p style="font-size: 11px; color: var(--text-light); margin-top: 6px;">* 공유 설정: '링크가 있는 모든 사용자' 및 '편집자'</p>
+            </div>
+            <button type="button" class="btn-submit" id="start-app-btn" style="width: 100%; padding: 12px; font-size: 14px; margin-top: 10px;">이 시트로 안전하게 시작하기</button>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="script.js"></script>
+</body>
+</html>
