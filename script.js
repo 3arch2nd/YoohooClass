@@ -1,7 +1,7 @@
 // script.js
 document.addEventListener('DOMContentLoaded', () => {
     // 💡 1. 마스터 GAS 주소 입력
-    const MASTER_GAS_URL = 'https://docs.google.com/spreadsheets/d/11wbMwMF0TvN188sHTboUi8XlckkCePHmmTlmLQ4X2t0/edit?usp=drive_link';
+    const MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbzrrvuMcbPhOpAVfrSAPZkGaUTN7J8oUSvpRcvF0omp6888A9Q4NXKHOnmaklSvEn5SxA/exec';
     const urlParams = new URLSearchParams(window.location.search);
     const connectedSheetId = urlParams.get('sheet');
 
