@@ -53,16 +53,21 @@ body {
 .edit-controls { display: flex; gap: 8px; align-items: center; }
 .edit-controls button { padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; cursor: pointer; background: var(--primary); color: white; border: none;}
 
+/* 💡 스크롤 영역 설정 (화면 이동 마우스 커서 적용) */
 .floor-plan-scroll-area { 
     flex: 1; position: relative; overflow: hidden; background-color: var(--bg-main); 
+    cursor: grab;
 }
+.floor-plan-scroll-area:active { cursor: grabbing; }
 
+/* 그리드 기본 축척 및 부드러운 전환 효과 준비 */
 .floor-plan-grid {
     position: absolute; top: 50%; left: 50%; 
     width: max-content; height: max-content;
     padding: 20px; display: grid;
     grid-template-columns: repeat(40, 40px); grid-template-rows: repeat(30, 40px);
     gap: 4px; transition: background-image 0.3s;
+    transform-origin: center center; /* 중앙을 기준으로 줌인/아웃 */
 }
 .floor-plan-grid.edit-mode {
     background-image: linear-gradient(to right, var(--border-color) 1px, transparent 1px), linear-gradient(to bottom, var(--border-color) 1px, transparent 1px);
@@ -73,6 +78,7 @@ body {
     border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; display: flex; flex-direction: column;
     justify-content: center; align-items: center; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     word-break: keep-all; overflow: hidden; position: relative; touch-action: none; 
+    z-index: 2; /* 기본 방은 위로 올라오게 */
 }
 .room-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; line-height: 1.2; pointer-events: none; }
 .room-info { font-size: 11px; color: var(--text-main); line-height: 1.2; pointer-events: none; }
@@ -92,6 +98,15 @@ body {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%234b5563'><path d='M8 0l2.5 2.5-.7.7L8.5 1.9V7h5.1l-1.3-1.3.7-.7L16 8l-3 3-.7-.7 1.3-1.3H8.5v5.1l1.3-1.3.7.7L8 16l-2.5-2.5.7-.7 1.3 1.3V8.5H2.4l1.3 1.3-.7.7L0 8l3-3 .7.7-1.3 1.3h5.1V1.9L6.2 3.2l-.7-.7L8 0z'/></svg>");
     background-size: cover;
     cursor: nwse-resize;
+}
+
+/* 💡 신규: 아래층 투영 (Onion Skin) 스타일 */
+.onion-skin-room {
+    background-color: rgba(229, 231, 235, 0.3) !important; /* 연한 회색, 반투명 */
+    border: 2px dashed #d1d5db !important;
+    color: #9ca3af;
+    z-index: 1; /* 편집할 방들보다 아래에 위치 */
+    pointer-events: none; /* 클릭되지 않고 뚫고 지나가게 */
 }
 
 .room-edit-btn {
@@ -118,8 +133,6 @@ body {
 .schedule-table { width: 100%; border-collapse: collapse; }
 .schedule-table th, .schedule-table td { border: 1px solid var(--border-color); padding: 10px 6px; text-align: center; font-size: 13px; }
 .schedule-table th { background-color: var(--bg-panel); font-weight: bold; }
-.clickable-row { cursor: pointer; transition: background-color 0.2s; }
-.clickable-row:hover { background-color: var(--bg-panel); }
 
 .delete-schedule-btn {
     padding: 4px 8px; background-color: #fee2e2; color: #ef4444;
@@ -144,15 +157,12 @@ body {
 .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1100; pointer-events: none; }
 .toast { background: #333; color: white; padding: 12px 24px; border-radius: 30px; margin-top: 10px; font-size: 14px; opacity: 0; transition: opacity 0.3s ease-in-out; }
 
-/* 💡 신규: 링크 복사 박스 스타일 */
 .copy-link-box {
     padding: 12px; background-color: var(--bg-panel); border: 1px dashed var(--primary); 
     border-radius: 4px; cursor: pointer; text-align: center; color: var(--text-main); 
     font-size: 13px; font-weight: bold; transition: all 0.2s ease;
 }
-.copy-link-box:hover {
-    background-color: var(--primary); color: white;
-}
+.copy-link-box:hover { background-color: var(--primary); color: white; }
 
 .mobile-warning { display: none !important; }
 @media (max-width: 600px) {
