@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 syncRoomsToGas(); // 시트가 비어있으면 초기 예시 데이터를 서버에 덮어씀
             }
+            updateRoomSelect(result.roomNames);
             renderFloor(currentFloor);
             showToast('✅ 데이터 로드 완료!');
         })
@@ -120,6 +121,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let zoom = window.innerWidth < 800 ? 0.6 : 0.8; 
     let panX = 0, panY = 0;
 
+// 새로운 함수 추가
+function updateRoomSelect(names) {
+    const select = document.querySelector('#schedule-form select');
+    select.innerHTML = ''; // 기존 옵션 삭제
+    names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    });
+}
+    
 function updateTransform() {
     panX = Math.max(-2000, Math.min(2000, panX));
     panY = Math.max(-2000, Math.min(2000, panY));
