@@ -65,7 +65,7 @@ body {
     position: absolute; top: 50%; left: 50%; 
     width: max-content; height: max-content;
     padding: 20px; display: grid;
-    grid-template-columns: repeat(40, 40px); grid-template-rows: repeat(30, 40px);
+    grid-template-columns: repeat(80, 40px); grid-template-rows: repeat(80, 40px);
     gap: 4px; transition: background-image 0.3s;
     transform-origin: center center; /* 중앙을 기준으로 줌인/아웃 */
 }
