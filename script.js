@@ -133,9 +133,15 @@ function updateRoomSelect(names) {
     });
 }
     
+// script.js
 function updateTransform() {
-    panX = Math.max(-2000, Math.min(2000, panX));
-    panY = Math.max(-2000, Math.min(2000, panY));
+    // 💡 줌 레벨에 따라 가동 범위 계산
+    // 줌이 커지면 이동 범위가 줄어들어야 건물이 화면에 고정됩니다.
+    const limit = 2000 * zoom; 
+    
+    panX = Math.max(-limit, Math.min(limit, panX));
+    panY = Math.max(-limit, Math.min(limit, panY));
+    
     floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
 }
 
