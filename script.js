@@ -727,9 +727,11 @@ scrollArea.addEventListener('pointerup', (e) => {
     document.getElementById('schedule-tbody').addEventListener('click', (e) => {
         if (e.target.classList.contains('delete-schedule-btn')) {
             const row = e.target.closest('tr');
+            
             // ✨ 빈칸(공백) 때문에 못 찾는 일이 없도록 .trim() 으로 여백을 깎아냅니다.
             const roomName = row.children[1].textContent.trim();
-            const periods = row.children[2].textContent.trim();
+            // 🚀 이 부분이 빠져있었습니다! 표의 3번째 칸(index 2)에서 '교시' 데이터를 추출합니다.
+            const periods = row.children[2].textContent.trim(); 
             const purpose = row.children[3].textContent.trim();
             const targetDate = datePicker.value;
 
@@ -741,7 +743,7 @@ scrollArea.addEventListener('pointerup', (e) => {
                 
                 fetch(MASTER_GAS_URL, {
                     method: 'POST',
-                    // ✨ periods(교시) 데이터도 추가로 보내서 더 정확하게 일정을 찾게 합니다.
+                    // ✨ periods: periods 데이터를 반드시 포함해서 보내야 서버가 알아먹습니다!
                     body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, periods: periods, purpose: purpose })
                 }).then(response => response.json()).then(result => {
                     // ✨ 핵심: 서버에서 "성공적으로 지웠다"고 확답을 줬을 때만 화면에서 지웁니다!
