@@ -37,6 +37,7 @@ datePicker.addEventListener('change', (e) => {
     updateDateDisplay(e.target.value);
     // 💡 날짜가 바뀌면 서버에서 해당 날짜의 일정 데이터를 새로 불러옵니다.
     loadScheduleByDate(e.target.value);
+    loadGlobalWarnings();
 });
 
 // 💡 특정 날짜의 일정 불러오기 함수 (교체)
@@ -719,6 +720,7 @@ scrollArea.addEventListener('pointerup', (e) => {
             
             // 💡 [추가된 로직] 저장이 완료되면 현재 화면의 날짜 기준으로 일정을 다시 불러옴!
             loadScheduleByDate(datePicker.value);
+            loadGlobalWarnings();
         })
         .catch(error => showToast('저장 실패: 통신 오류'));
     });
@@ -753,6 +755,7 @@ scrollArea.addEventListener('pointerup', (e) => {
                         
                         // 🚀 삭제된 일정이 평면도 색상과 말풍선에도 즉시 반영되도록 렌더링 초기화
                         loadScheduleByDate(targetDate);
+                        loadGlobalWarnings();
                     } else {
                         showToast('❌ 삭제 실패: ' + result.message); // 못 찾았을 땐 화면에 그대로 둡니다.
                     }
@@ -979,4 +982,5 @@ scrollArea.addEventListener('pointerup', (e) => {
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
     loadScheduleByDate(datePicker.value);
+    loadGlobalWarnings();
 });
