@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let currentSchedules = [];
+
     // 날짜 세팅 로직
     const datePicker = document.getElementById('current-date');
     const formattedDateText = document.getElementById('formatted-date');
@@ -37,7 +39,7 @@ datePicker.addEventListener('change', (e) => {
     loadScheduleByDate(e.target.value);
 });
 
-// 💡 새로운 함수 추가: 특정 날짜의 일정 불러오기
+// 💡 특정 날짜의 일정 불러오기 함수 (교체)
 function loadScheduleByDate(date) {
     if (!connectedSheetId) return;
     
@@ -48,13 +50,54 @@ function loadScheduleByDate(date) {
     })
     .then(res => res.json())
     .then(result => {
-        // 표 영역을 비우고 새 데이터를 렌더링
+        currentSchedules = result.schedules; // 불러온 일정을 변수에 저장
         renderScheduleTable(result.schedules); 
+        updateFloorPlanWithSchedules(); // 🚀 평면도에 일정 입히기 호출!
         showToast('✅ 일정 로드 완료!');
     })
     .catch(e => showToast('❌ 일정 로드 실패'));
 }
 
+    // 💡 평면도에 일정을 시각적으로 업데이트하는 핵심 함수 [새로 추가]
+function updateFloorPlanWithSchedules() {
+    const roomElements = floorGrid.querySelectorAll('.room:not(.onion-skin-room)');
+    
+    roomElements.forEach(roomEl => {
+        // '유휴 공간 아님' 처리된 방은 무시합니다.
+        if (roomEl.classList.contains('status-unavailable')) return; 
+        
+        const nameEl = roomEl.querySelector('.room-name');
+        const infoEl = roomEl.querySelector('.room-info');
+        if (!nameEl || !infoEl) return;
+        
+        const roomName = nameEl.textContent;
+        // 이 방에 해당하는 일정만 필터링
+        const roomSchedules = currentSchedules.filter(s => s.room === roomName);
+        
+        if (roomSchedules.length > 0) {
+            let allPeriods = [];
+            roomSchedules.forEach(s => {
+                const periods = String(s.periods).split(',').map(p => p.trim());
+                allPeriods = allPeriods.concat(periods);
+            });
+            // 중복 교시 제거 및 오름차순 정렬
+            allPeriods = [...new Set(allPeriods)].sort(); 
+            
+            infoEl.textContent = allPeriods.join(', ');
+            
+            // 등록된 교시가 4개 이상이면 핑크색(꽉 참), 아니면 노란색(부분 사용)으로 색상 변경
+            roomEl.classList.remove('status-empty', 'status-partial', 'status-full');
+            roomEl.classList.add(allPeriods.length >= 4 ? 'status-full' : 'status-partial');
+        } else {
+            infoEl.textContent = '종일 비어있음';
+            roomEl.classList.remove('status-partial', 'status-full');
+            roomEl.classList.add('status-empty');
+        }
+    });
+}
+
+
+    
     // 모바일 경고 제어
     const warningLayer = document.getElementById('mobile-warning');
     const closeWarningBtn = document.getElementById('close-warning-btn');
@@ -629,17 +672,22 @@ function updateTransform() {
         toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
 
-    // script.js - 표 렌더링 함수
+    // 💡 표 렌더링 함수 (교체: 글자 줄바꿈 방지 적용)
 function renderScheduleTable(schedules) {
     const tbody = document.getElementById('schedule-tbody');
     tbody.innerHTML = '';
     
     schedules.forEach(item => {
         const tr = document.createElement('tr');
+        
+        // ✨ '1교시, 2교시'를 각각 분리한 후, 줄바꿈 방지 <span> 태그로 감싸기
+        const periodsArr = String(item.periods).split(',').map(p => p.trim());
+        const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;">${p}</span>`).join(', ');
+
         tr.innerHTML = `
             <td>${currentFloor}층</td>
             <td>${item.room}</td>
-            <td>${item.periods}</td>
+            <td>${safePeriodsHtml}</td>
             <td>${item.purpose}</td>
             <td><button class="delete-schedule-btn">삭제</button></td>
         `;
