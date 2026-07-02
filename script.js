@@ -300,14 +300,21 @@ scrollArea.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 
+    // 💡 [수정] 드래그와 클릭을 완벽하게 구분하는 스마트 포인터 이벤트
     let isPanning = false;
     let panStartX, panStartY;
-    
+    let hasMovedForPan = false; // 드래그 여부 확인용
+    let panInitialTarget = null; // 처음 클릭한 요소 기억용
+
     scrollArea.addEventListener('pointerdown', (e) => {
         const room = e.target.closest('.room');
+        // 편집 모드에서 교실을 잡았을 때는 화면 드래그 금지
         if (room && !room.classList.contains('onion-skin-room') && floorGrid.classList.contains('edit-mode')) return;
         
         isPanning = true;
+        hasMovedForPan = false;      // 클릭 시작 시 드래그 여부 초기화
+        panInitialTarget = e.target; // 처음 누른 요소 기억
+        
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
         scrollArea.setPointerCapture(e.pointerId);
@@ -315,6 +322,14 @@ scrollArea.addEventListener('wheel', (e) => {
 
     scrollArea.addEventListener('pointermove', (e) => {
         if (!isPanning) return;
+        
+        // 💡 마우스가 5px 이상 움직였으면 '드래그'로 판정!
+        const dx = Math.abs((e.clientX - panX) - panStartX);
+        const dy = Math.abs((e.clientY - panY) - panStartY);
+        if (dx > 5 || dy > 5) {
+            hasMovedForPan = true;
+        }
+
         panX = e.clientX - panStartX;
         panY = e.clientY - panStartY;
         updateTransform();
@@ -323,6 +338,15 @@ scrollArea.addEventListener('wheel', (e) => {
     scrollArea.addEventListener('pointerup', (e) => {
         isPanning = false;
         scrollArea.releasePointerCapture(e.pointerId);
+        
+        // 💡 드래그하지 않고 가볍게 '클릭'만 했을 경우 툴팁 로직 실행!
+        if (!hasMovedForPan && panInitialTarget) {
+            const room = panInitialTarget.closest('.room:not(.onion-skin-room)');
+            // 편집 모드가 아닐 때, 교실을 클릭했다면 툴팁을 띄움
+            if (room && !floorGrid.classList.contains('edit-mode')) {
+                showRoomTooltip(room); // 분리한 툴팁 함수 호출
+            }
+        }
     });
 
     // 💡 1. renderFloor 함수 하단부 수정 (다른 층으로 이동해도 일정을 다시 입혀줌)
@@ -788,16 +812,20 @@ function renderScheduleTable(schedules) {
         }
     });
 
-    // 💡 평면도의 교실을 클릭했을 때 이벤트
-    floorGrid.addEventListener('click', (e) => {
-        // 편집 모드이거나, 편집 버튼을 눌렀을 때는 툴팁 안 띄움
-        if (floorGrid.classList.contains('edit-mode')) return; 
-        const editBtn = e.target.closest('.room-edit-btn');
-        if (editBtn) return;
+// 💡 [수정] 툴팁 UI 생성 및 바디 부착 (이 부분은 그대로 유지)
+    const tooltip = document.createElement('div');
+    tooltip.className = 'room-tooltip hidden';
+    document.body.appendChild(tooltip);
 
-        const room = e.target.closest('.room:not(.onion-skin-room)');
-        if (!room) return;
+    // 💡 빈 공간 클릭 시 말풍선 닫기 (이 부분도 유지)
+    document.addEventListener('pointerdown', (e) => {
+        if (!tooltip.contains(e.target) && !e.target.closest('.room')) {
+            tooltip.classList.add('hidden');
+        }
+    });
 
+    // 💡 [변경] 아까 만들었던 click 이벤트를 함수 형태로 변경!
+    function showRoomTooltip(room) {
         const roomName = room.querySelector('.room-name').textContent;
 
         // 1. 말풍선 위치 계산 (교실의 오른쪽 옆에 띄우기)
@@ -805,7 +833,7 @@ function renderScheduleTable(schedules) {
         let leftPos = rect.right + 15;
         let topPos = rect.top;
 
-        // 만약 화면 오른쪽을 벗어날 것 같으면 교실 왼쪽에 띄움
+        // 화면 오른쪽을 벗어날 것 같으면 교실 왼쪽에 띄움
         if (leftPos + 240 > window.innerWidth) {
             leftPos = rect.left - 240; 
         }
@@ -849,7 +877,7 @@ function renderScheduleTable(schedules) {
         .catch(err => {
             tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; font-size:12px; color:red;">불러오기 실패 🐛</div>`;
         });
-    });
+    }
 
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
