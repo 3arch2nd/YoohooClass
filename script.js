@@ -868,7 +868,7 @@ scrollArea.addEventListener('pointerup', (e) => {
         .then(res => res.json())
         .then(result => {
             if (!result.schedules || result.schedules.length === 0) {
-                tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px; color:var(--text-light);">예정된 일정이 없습니다. ✨</div>`;
+                tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px; color:var(--text-light);">예정된 일정이 없습니다.</div>`;
                 adjustTooltipPosition(); // 상태 변경 후 2차 조정
                 return;
             }
