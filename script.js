@@ -1073,12 +1073,15 @@ scrollArea.addEventListener('pointerup', (e) => {
             if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                 for (let p = 1; p <= 6; p++) {
                     if (timetable[dayOfWeek][p]) {
+// 💡 script.js 의 일괄 생성 루프 부분 (수정)
                         const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(currentDate.getDate()).padStart(2,'0')}`;
+                        
                         batchSchedules.push({
                             date: dateString,
                             room: roomName,
                             periods: p + '교시',
-                            purpose: timetable[dayOfWeek][p] // 여기에 '3-2' 같은 값이 들어감
+                            // ✨ purpose에 명확하게 입력받은 '반' 데이터(timetable[dayOfWeek][p])만 들어갑니다!
+                            purpose: timetable[dayOfWeek][p] 
                         });
                     }
                 }
