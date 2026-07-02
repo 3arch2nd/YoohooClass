@@ -818,11 +818,11 @@ scrollArea.addEventListener('wheel', (e) => {
         }
     });
 
-    // 💡 말풍선 띄우기 함수
+    // 💡 말풍선 띄우기 함수 (위치 자동 보정 기능 추가)
     function showRoomTooltip(room) {
         const roomName = room.querySelector('.room-name').textContent;
 
-        // 1. 말풍선 위치 계산 (교실의 오른쪽 옆에 띄우기)
+        // 1. 말풍선 기본 위치 계산 (교실의 오른쪽 옆, 위쪽 기준)
         const rect = room.getBoundingClientRect();
         let leftPos = rect.right + 15;
         let topPos = rect.top;
@@ -835,12 +835,25 @@ scrollArea.addEventListener('wheel', (e) => {
         tooltip.style.left = `${leftPos}px`;
         tooltip.style.top = `${topPos}px`;
 
+        // 💡 [새로 추가] 툴팁 높이가 변할 때마다 화면 밖으로 나가는지 검사하는 내부 함수
+        const adjustTooltipPosition = () => {
+            const tooltipRect = tooltip.getBoundingClientRect();
+            // 화면 아래로 바닥이 잘리는 경우
+            if (tooltipRect.bottom > window.innerHeight) {
+                let newTop = window.innerHeight - tooltipRect.height - 20; // 바닥에서 20px 위로 끌어올림
+                if (newTop < 10) newTop = 10; // 너무 끌어올려서 천장을 뚫지 않도록 최소 여백(10px) 보호
+                tooltip.style.top = `${newTop}px`;
+            }
+        };
+
         // 2. 로딩 상태 표시
         tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px;">일정 불러오는 중... ⏳</div>`;
         tooltip.classList.remove('hidden');
+        adjustTooltipPosition(); // 로딩창 크기 기준으로 1차 조정
 
         if (!connectedSheetId) {
             tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; font-size:12px; color:var(--text-light);">시트가 연결되지 않았습니다.</div>`;
+            adjustTooltipPosition();
             return;
         }
 
@@ -853,6 +866,7 @@ scrollArea.addEventListener('wheel', (e) => {
         .then(result => {
             if (!result.schedules || result.schedules.length === 0) {
                 tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px; color:var(--text-light);">예정된 일정이 없습니다. ✨</div>`;
+                adjustTooltipPosition(); // 상태 변경 후 2차 조정
                 return;
             }
 
@@ -867,12 +881,15 @@ scrollArea.addEventListener('wheel', (e) => {
                 `;
             });
             tooltip.innerHTML = html;
+            
+            // ✨ [핵심] 데이터가 다 채워져서 말풍선이 길어진 후 화면에 잘리지 않도록 3차 최종 조정!
+            adjustTooltipPosition(); 
         })
         .catch(err => {
             tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; font-size:12px; color:red;">불러오기 실패 🐛</div>`;
+            adjustTooltipPosition();
         });
     }
-
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
     loadScheduleByDate(datePicker.value);
