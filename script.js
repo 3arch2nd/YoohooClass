@@ -412,7 +412,7 @@ scrollArea.addEventListener('pointerup', (e) => {
             let info = '종일 비어있음';
             if (room.classList.contains('status-unavailable')) {
                 status = 'status-unavailable';
-                info = '유휴 공간 아님';
+                info = '';
             }
             
             return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: info, status: status };
@@ -607,7 +607,7 @@ scrollArea.addEventListener('pointerup', (e) => {
             if(infoEl) infoEl.textContent = '종일 비어있음';
         } else {
             editingRoomElement.className = 'room status-unavailable';
-            if(infoEl) infoEl.textContent = '유휴 공간 아님';
+            if(infoEl) infoEl.textContent = '';
         }
         roomEditModal.classList.add('hidden'); editingRoomElement = null;
         saveCurrentFloor(); 
