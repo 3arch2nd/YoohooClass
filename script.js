@@ -827,17 +827,52 @@ scrollArea.addEventListener('pointerup', (e) => {
 
     // (위쪽 코드들은 그대로 유지 ...)
     
-    // 💡 표 렌더링 함수 (교체: 글자 줄바꿈 방지 적용)
+    // 💡 표 렌더링 함수 (중복 일정 검사 및 하이라이트/경고 메시지 기능 추가)
     function renderScheduleTable(schedules) {
         const tbody = document.getElementById('schedule-tbody');
+        const warningEl = document.getElementById('overlap-warning');
         tbody.innerHTML = '';
         
+        // ✨ 1. 표에 띄울 일정들의 중복 여부(같은 교실, 겹치는 교시) 프론트엔드 검사
+        let overlappedRooms = new Set();
+        
+        for (let i = 0; i < schedules.length; i++) {
+            schedules[i].isOverlapped = false;
+            for (let j = 0; j < schedules.length; j++) {
+                if (i !== j && schedules[i].room === schedules[j].room) {
+                    const p1 = String(schedules[i].periods).split(',').map(p => p.trim());
+                    const p2 = String(schedules[j].periods).split(',').map(p => p.trim());
+                    const hasOverlap = p1.some(p => p2.includes(p)); // 하나라도 겹치는 시간이 있다면!
+                    
+                    if (hasOverlap) {
+                        schedules[i].isOverlapped = true;
+                        overlappedRooms.add(schedules[i].room);
+                    }
+                }
+            }
+        }
+        
+        // ✨ 2. 경고 메시지 표시/숨김 처리
+        if (overlappedRooms.size > 0) {
+            const roomNames = Array.from(overlappedRooms).join(', ');
+            const dateObj = new Date(document.getElementById('current-date').value);
+            const dateStr = `${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
+            
+            // "8월 15일 (과학실, 예시 교실)의 일정이 중복됩니다. 확인해 주세요!"
+            warningEl.innerHTML = `⚠️ ${dateStr} <b>(${roomNames})</b>의 일정이 중복됩니다.<br>확인해 주세요!`;
+            warningEl.classList.remove('hidden');
+        } else {
+            warningEl.classList.add('hidden');
+        }
+        
+        // ✨ 3. 표 그리기 (중복된 행은 형광펜 처리 적용)
         schedules.forEach(item => {
             const tr = document.createElement('tr');
+            if (item.isOverlapped) tr.className = 'overlapped-row'; // 배경색 변경
             
-            // ✨ '1교시, 2교시'를 각각 분리한 후, 줄바꿈 방지 <span> 태그로 감싸기
+            // 겹치는 일정일 경우 교시 텍스트에 형광펜 클래스(highlight-text)를 발라줍니다.
             const periodsArr = String(item.periods).split(',').map(p => p.trim());
-            const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;">${p}</span>`).join(', ');
+            const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;" class="${item.isOverlapped ? 'highlight-text' : ''}">${p}</span>`).join(', ');
 
             tr.innerHTML = `
                 <td>${currentFloor}층</td>
