@@ -262,6 +262,7 @@ function updateTransform() {
         scrollArea.releasePointerCapture(e.pointerId);
     });
 
+    // 💡 1. renderFloor 함수 하단부 수정 (다른 층으로 이동해도 일정을 다시 입혀줌)
     function renderFloor(floorNum) {
         floorGrid.innerHTML = ''; 
         const rooms = floorData[floorNum] || [];
@@ -277,6 +278,11 @@ function updateTransform() {
         renderFloorButtons();
         renderOnionSkin(); 
         updateTransform(); 
+        
+        // 🚀 방금 추가한 코드! 렌더링 직후 일정이 있다면 평면도에 즉시 반영
+        if (typeof updateFloorPlanWithSchedules === 'function') {
+            updateFloorPlanWithSchedules();
+        }
     }
 
     function renderOnionSkin() {
@@ -301,6 +307,8 @@ function updateTransform() {
         }
     }
 
+    
+    // 💡 2. saveCurrentFloor 함수 교체 (임시로 입힌 일정이 도면 데이터로 굳어지지 않도록 보호)
     function saveCurrentFloor() {
         const rooms = Array.from(floorGrid.querySelectorAll('.room:not(.onion-skin-room)'));
         floorData[currentFloor] = rooms.map(room => {
@@ -308,11 +316,16 @@ function updateTransform() {
             const rowStart = parseInt(room.style.gridRowStart) || 1;
             const w = parseInt(room.style.gridColumn.match(/span\s+(\d+)/)?.[1] || 2);
             const h = parseInt(room.style.gridRow.match(/span\s+(\d+)/)?.[1] || 2);
+            
+            // 무조건 원본 상태('종일 비어있음' 또는 '유휴 공간 아님')만 추출하여 저장
             let status = 'status-empty';
-            if (room.classList.contains('status-unavailable')) status = 'status-unavailable';
-            else if (room.classList.contains('status-partial')) status = 'status-partial';
-            else if (room.classList.contains('status-full')) status = 'status-full';
-            return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: room.querySelector('.room-info').textContent, status };
+            let info = '종일 비어있음';
+            if (room.classList.contains('status-unavailable')) {
+                status = 'status-unavailable';
+                info = '유휴 공간 아님';
+            }
+            
+            return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: info, status: status };
         });
     }
 
@@ -376,6 +389,7 @@ function updateTransform() {
         });
     });
 
+    // 💡 3. editToggle 이벤트 리스너 교체 (편집을 마친 뒤 일정을 복구시킴)
     const editToggle = document.getElementById('edit-mode-toggle');
     const editControls = document.getElementById('edit-controls');
     editToggle.addEventListener('change', (e) => {
@@ -390,6 +404,9 @@ function updateTransform() {
             saveCurrentFloor();
             renderOnionSkin(); 
             syncRoomsToGas(); // 🚀 여기서 최종 동기화 (알림 뜸)
+            
+            // 🚀 방금 추가한 코드! 편집 종료 후 일정을 다시 예쁘게 입힘
+            updateFloorPlanWithSchedules();
         }
     });
 
