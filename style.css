@@ -308,3 +308,11 @@ body {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* 💡 [추가] 학기별 시간표 입력 테이블 스타일 */
+.timetable-input-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.timetable-input-table th, .timetable-input-table td { border: 1px solid var(--border-color); padding: 0; text-align: center; font-size: 12px; vertical-align: middle; height: 32px; }
+.timetable-input-table th { background-color: var(--bg-panel); font-weight: bold; padding: 6px; }
+.timetable-input-table td:first-child { background-color: var(--bg-panel); font-weight: bold; width: 50px; }
+.timetable-input-table input { width: 100%; height: 100%; border: none; padding: 4px; text-align: center; font-size: 12px; outline: none; background: transparent; }
+.timetable-input-table input:focus { background-color: #f3e8ff; } /* 포커스 시 연한 보라색 */
