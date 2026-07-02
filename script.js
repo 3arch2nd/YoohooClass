@@ -852,12 +852,13 @@ scrollArea.addEventListener('pointerup', (e) => {
         .catch(e => console.error('경고 로드 실패'));
     }
     
-    // 💡 [수정] 표 렌더링 함수 (표 안의 형광펜 하이라이트만 유지)
+    // 💡 [수정] 표 렌더링 함수 (정확한 층수 추적 로직 추가)
     function renderScheduleTable(schedules) {
         const tbody = document.getElementById('schedule-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
         
+        // 1. 중복 일정 검사 (기존 유지)
         for (let i = 0; i < schedules.length; i++) {
             schedules[i].isOverlapped = false;
             for (let j = 0; j < schedules.length; j++) {
@@ -870,6 +871,7 @@ scrollArea.addEventListener('pointerup', (e) => {
             }
         }
         
+        // 2. 표 그리기
         schedules.forEach(item => {
             const tr = document.createElement('tr');
             if (item.isOverlapped) tr.className = 'overlapped-row';
@@ -877,8 +879,19 @@ scrollArea.addEventListener('pointerup', (e) => {
             const periodsArr = String(item.periods).split(',').map(p => p.trim());
             const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;" class="${item.isOverlapped ? 'highlight-text' : ''}">${p}</span>`).join(', ');
 
+            // ✨ [핵심 추가] 전체 도면 데이터(floorData)를 뒤져서 해당 방의 진짜 층수 찾기!
+            let actualFloor = '?';
+            for (let floorNum in floorData) {
+                // 해당 층의 방 목록 중에 현재 방 이름(item.room)이 존재한다면!
+                if (floorData[floorNum].some(room => room.name === item.room)) {
+                    actualFloor = floorNum;
+                    break;
+                }
+            }
+
+            // 렌더링 시 currentFloor 대신 찾아낸 actualFloor를 출력합니다.
             tr.innerHTML = `
-                <td>${currentFloor}층</td>
+                <td>${actualFloor}층</td>
                 <td>${item.room}</td>
                 <td>${safePeriodsHtml}</td>
                 <td>${item.purpose}</td>
