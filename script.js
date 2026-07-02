@@ -501,16 +501,23 @@ function updateTransform() {
         modal.classList.add('hidden'); form.reset(); repeatEndGroup.classList.add('hidden');
     });
 
+    // [수정] script.js - 일정 추가 이벤트 로직 교체
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const checkedPeriods = Array.from(document.querySelectorAll('input[name="period"]:checked')).map(cb => cb.value);
         if (checkedPeriods.length === 0) { showToast('최소 1개 이상의 교시를 선택해주세요.'); return; }
 
         const roomSelect = form.querySelector('select');
+        
+        // 💡 [추가된 로직] 반복 일정 여부 확인 및 종료일 설정
+        const isRepeat = document.getElementById('repeat-toggle').checked;
+        const endDate = isRepeat ? document.getElementById('modal-end-date').value : document.getElementById('modal-start-date').value;
+
         const scheduleData = {
             action: 'addSchedule',
             sheetId: connectedSheetId, 
             date: document.getElementById('modal-start-date').value,
+            endDate: endDate, // 💡 서버로 종료일 함께 전송
             room: roomSelect.value, 
             periods: checkedPeriods,
             purpose: document.getElementById('schedule-purpose').value
@@ -525,8 +532,13 @@ function updateTransform() {
         fetch(MASTER_GAS_URL, { method: 'POST', body: JSON.stringify(scheduleData) })
         .then(response => response.json())
         .then(result => {
-            modal.classList.add('hidden'); showToast('✅ ' + result.message);
-            form.reset(); repeatEndGroup.classList.add('hidden');
+            modal.classList.add('hidden'); 
+            showToast('✅ ' + result.message);
+            form.reset(); 
+            repeatEndGroup.classList.add('hidden');
+            
+            // 💡 [추가된 로직] 저장이 완료되면 현재 화면의 날짜 기준으로 일정을 다시 불러옴!
+            loadScheduleByDate(datePicker.value);
         })
         .catch(error => showToast('❌ 저장 실패: 통신 오류'));
     });
@@ -637,4 +649,5 @@ function renderScheduleTable(schedules) {
 
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
+    loadScheduleByDate(datePicker.value);
 });
