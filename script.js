@@ -53,9 +53,9 @@ function loadScheduleByDate(date) {
         currentSchedules = result.schedules; // 불러온 일정을 변수에 저장
         renderScheduleTable(result.schedules); 
         updateFloorPlanWithSchedules(); // 🚀 평면도에 일정 입히기 호출!
-        showToast('✅ 일정 로드 완료!');
+        showToast('일정 로드 완료!');
     })
-    .catch(e => showToast('❌ 일정 로드 실패'));
+    .catch(e => showToast('일정 로드 실패'));
 }
 
     // 💡 평면도에 일정을 시각적으로 업데이트하는 핵심 함수 [새로 추가]
@@ -132,7 +132,7 @@ function updateFloorPlanWithSchedules() {
     // 🚀 서버로 평면도 데이터 동기화 (알림 강화 🐛)
     function syncRoomsToGas() {
         if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
-            showToast('⚠️ 마스터 주소가 없거나 시트가 연결되지 않아 로컬에만 임시 저장되었습니다.');
+            showToast('마스터 주소가 없거나 시트가 연결되지 않아 로컬에만 임시 저장되었습니다.');
             return;
         }
         
@@ -144,14 +144,14 @@ function updateFloorPlanWithSchedules() {
         .then(res => res.json())
         .then(result => {
             if (result.result === 'success') {
-                showToast('✅ 평면도 배치가 서버에 안전하게 저장되었습니다!');
+                showToast('평면도 배치가 서버에 안전하게 저장되었습니다!');
             } else {
-                showToast('❌ 서버 저장 오류: ' + result.message);
+                showToast('서버 저장 오류: ' + result.message);
             }
         })
         .catch(e => {
             console.error(e);
-            showToast('❌ 통신 실패: 구글 서버가 응답하지 않습니다.');
+            showToast('통신 실패: 구글 서버가 응답하지 않습니다.');
         });
     }
 
@@ -191,10 +191,10 @@ function updateFloorPlanWithSchedules() {
             panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
             
             renderFloor(currentFloor);
-            showToast('✅ 데이터 로드 완료!');
+            showToast('데이터 로드 완료!');
         })
         .catch(e => {
-            showToast('⚠️ 불러오기 실패. 기본 데이터로 시작합니다.');
+            showToast('불러오기 실패. 기본 데이터로 시작합니다.');
             updateGlobalBounds();
             
             // 💡 [에러 처리용 수정] 실패했을 때도 중심 균형 유지
@@ -664,7 +664,7 @@ scrollArea.addEventListener('wheel', (e) => {
             // 💡 [추가된 로직] 저장이 완료되면 현재 화면의 날짜 기준으로 일정을 다시 불러옴!
             loadScheduleByDate(datePicker.value);
         })
-        .catch(error => showToast('❌ 저장 실패: 통신 오류'));
+        .catch(error => showToast('저장 실패: 통신 오류'));
     });
 
     document.getElementById('schedule-tbody').addEventListener('click', (e) => {
@@ -684,7 +684,7 @@ scrollArea.addEventListener('wheel', (e) => {
                     body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, purpose: purpose })
                 }).then(response => response.json()).then(result => {
                     row.remove(); showToast('✅ ' + result.message);
-                }).catch(error => showToast('❌ 삭제 실패: 통신 오류'));
+                }).catch(error => showToast('삭제 실패: 통신 오류'));
             });
         }
     });
