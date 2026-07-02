@@ -243,3 +243,21 @@ body {
     color: #10b981; /* 산뜻한 초록색 */
     margin-bottom: 2px;
 }
+
+/* 💡 [추가] 중복 일정 형광펜 효과 및 커스텀 시간 입력칸 */
+.tooltip-item.overlapped {
+    background-color: #fff1f2; /* 말풍선 배경을 아주 연한 핑크로 */
+}
+
+.tooltip-item.overlapped .highlight-text {
+    /* ✨ 글씨 아래쪽 절반만 칠해지는 예쁜 붉은 형광펜 효과 */
+    background: linear-gradient(to top, #fecdd3 40%, transparent 40%);
+    font-weight: bold;
+}
+
+#custom-time-group { margin-top: 10px; width: 100%; }
+#custom-time-group input { 
+    width: 100%; padding: 8px; 
+    border: 1px solid var(--border-color); 
+    border-radius: 4px; font-size: 13px; 
+}
