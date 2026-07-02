@@ -1093,7 +1093,7 @@ scrollArea.addEventListener('pointerup', (e) => {
         if (batchSchedules.length === 0) { showToast('❌ 선택한 기간 내에 평일(월~금)이 없습니다.'); return; }
 
         // 3-3. 서버로 전송 (엄청난 양이므로 Batch Action 사용)
-        showToast(`총 ${batchSchedules.length}개의 기본 일정을 쏟아붓는 중... 🚀`);
+        showToast(`총 ${batchSchedules.length}개의 기본 일정을 생성하는 중... 🚀`);
         fetch(MASTER_GAS_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'batchAddSchedules', sheetId: connectedSheetId, schedules: batchSchedules })
