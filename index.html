@@ -104,6 +104,15 @@
                         <label class="period-label"><input type="checkbox" name="period" value="7"> 7교시</label>
                         <label class="period-label"><input type="checkbox" name="period" value="8"> 8교시</label>
                     </div>
+                    <div class="period-checkbox-group">
+        <label class="period-label">
+            <input type="checkbox" name="period" value="custom" id="custom-time-cb"> 직접 입력
+        </label>
+    </div>
+
+    <div id="custom-time-group" class="hidden">
+        <input type="text" id="custom-time-input" placeholder="예: 14:30 ~ 15:10">
+    </div>
                 </div>
                 <div class="form-group">
                     <label>사용 목적 / 사용자</label>
