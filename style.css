@@ -190,14 +190,16 @@ body {
     #close-warning-btn { margin-top: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 4px; }
     .fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
 }
-/* 💡 [추가] 교실 클릭 시 나타나는 말풍선(툴팁) 스타일 */
+/* 💡 [수정] 교실 클릭 시 나타나는 말풍선(툴팁) 스타일 */
 .room-tooltip {
     position: fixed;
     background: white;
-    border: 2px solid var(--primary);
+    /* ✨ 1. 굵은 진회색 테두리를 전체 UI 톤에 맞춘 연한 회색으로 변경 */
+    border: 1px solid var(--border-color); 
     border-radius: 8px;
     padding: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    /* ✨ 2. 그림자를 조금 더 부드럽고 은은하게 조정하여 떠 있는 느낌 완화 */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
     z-index: 2000;
     width: 220px;
     max-height: 280px;
