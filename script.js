@@ -335,16 +335,19 @@ scrollArea.addEventListener('wheel', (e) => {
         updateTransform();
     });
 
-    scrollArea.addEventListener('pointerup', (e) => {
+scrollArea.addEventListener('pointerup', (e) => {
         isPanning = false;
         scrollArea.releasePointerCapture(e.pointerId);
         
         // 💡 드래그하지 않고 가볍게 '클릭'만 했을 경우 툴팁 로직 실행!
         if (!hasMovedForPan && panInitialTarget) {
             const room = panInitialTarget.closest('.room:not(.onion-skin-room)');
-            // 편집 모드가 아닐 때, 교실을 클릭했다면 툴팁을 띄움
+            
+            // ✨ [핵심 수정] 편집 모드가 아니고, '유휴 공간(status-unavailable이 아님)'일 때만 툴팁을 띄움!
             if (room && !floorGrid.classList.contains('edit-mode')) {
-                showRoomTooltip(room); // 분리한 툴팁 함수 호출
+                if (!room.classList.contains('status-unavailable')) {
+                    showRoomTooltip(room); 
+                }
             }
         }
     });
