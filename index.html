@@ -204,7 +204,7 @@
             <!-- 2. 연결된 상태 뷰 (공유 및 갱신용) -->
             <div id="settings-connected-view" class="hidden">
                 <p style="font-size: 13px; color: #10b981; margin-bottom: 20px; font-weight: bold; text-align: center;">✅ 현재 학교 시트가 안전하게 연결되어 있습니다.</p>
-                
+                <button type="button" class="btn-submit" id="open-semester-setup-btn" style="width: 100%; margin-bottom: 20px; background-color: #8b5cf6;">학기별 기본 시간표 일괄 세팅</button>
                 <div class="form-group">
                     <label>현재 시트 접속 링크 공유하기</label>
                     <div id="copy-link-box" class="copy-link-box">
@@ -245,6 +245,46 @@
         </div>
     </div>
 
+<div id="semester-setup-modal" class="modal-overlay hidden" style="z-index: 2000;">
+        <div class="modal-content" style="width: 500px; max-width: 95%;">
+            <h3 style="margin-bottom: 10px; color: #8b5cf6;">학기별 기본 시간표 일괄 세팅</h3>
+            <p style="font-size: 12px; color: var(--text-light); margin-bottom: 20px; line-height: 1.4;">
+                특정 교실의 한 학기 기본 시간표를 일괄 등록합니다.<br>입력된 학년/반은 설정한 기간 내의 매주 해당 요일에 자동 생성됩니다.
+            </p>
+            
+            <form id="sem-setup-form">
+                <div class="form-group">
+                    <label>적용할 교실 선택</label>
+                    <select id="sem-room-select" required></select>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>학기 시작일</label>
+                        <input type="date" id="sem-start-date" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>학기 종료일</label>
+                        <input type="date" id="sem-end-date" required>
+                    </div>
+                </div>
+
+                <label style="font-size: 12px; font-weight: bold; margin-bottom: 6px; display: block;">기본 시간표 입력 (해당하는 칸에 학년/반 입력)</label>
+                <table class="timetable-input-table">
+                    <thead>
+                        <tr><th></th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>
+                    </thead>
+                    <tbody id="sem-timetable-body">
+                        </tbody>
+                </table>
+
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn-cancel" id="close-sem-setup-btn">취소</button>
+                    <button type="submit" class="btn-submit" style="background-color: #8b5cf6;">일괄 생성 및 저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <div id="toast-container" class="toast-container"></div>
     <script src="script.js"></script>
 </body>
