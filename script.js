@@ -212,18 +212,22 @@ function updateFloorPlanWithSchedules() {
     // 💡 [추가] 건물 전체의 실제 교실 배치 경계선을 저장할 변수
     let globalBounds = { bLeft: 0, bRight: 3516, bTop: 0, bBottom: 3516 };
 
-// script.js 끝부분에 아래 함수가 있는지 확인하세요!
-function updateRoomSelect(names) {
-    const select = document.querySelector('#schedule-form select');
-    if (!select) return; // 모달이 닫혀있을 때 방지
-    select.innerHTML = ''; 
-    names.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-    });
-}
+// 💡 [수정] 교실 목록 업데이트 함수 (가나다순 정렬 적용)
+    function updateRoomSelect(names) {
+        const select = document.querySelector('#schedule-form select');
+        if (!select) return; // 모달이 닫혀있을 때 방지
+        select.innerHTML = ''; 
+        
+        // ✨ 배열을 한국어 가나다순으로 깔끔하게 정렬!
+        const sortedNames = [...names].sort((a, b) => a.localeCompare(b, 'ko-KR'));
+        
+        sortedNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+        });
+    }
     
 // 💡 [새로 추가] 모든 층을 샅샅이 뒤져 교실들의 전체 경계(바운딩 박스)를 계산하는 함수
 function updateGlobalBounds() {
@@ -1014,7 +1018,7 @@ scrollArea.addEventListener('pointerup', (e) => {
         semTimetableBody.appendChild(tr);
     }
 
-    // 2. 모달 열기 이벤트 (방 목록 불러오기)
+    // 💡 [수정] 2. 모달 열기 이벤트 (방 목록 불러오기 및 가나다순 정렬)
     document.getElementById('open-semester-setup-btn').addEventListener('click', () => {
         const roomSelect = document.getElementById('sem-room-select');
         roomSelect.innerHTML = '';
@@ -1024,7 +1028,11 @@ scrollArea.addEventListener('pointerup', (e) => {
                 if (r.status !== 'status-unavailable') activeRooms.add(r.name);
             });
         }
-        activeRooms.forEach(room => {
+        
+        // ✨ Set에 담긴 방 목록을 배열로 바꾼 뒤 가나다순으로 정렬!
+        const sortedRooms = Array.from(activeRooms).sort((a, b) => a.localeCompare(b, 'ko-KR'));
+        
+        sortedRooms.forEach(room => {
             const opt = document.createElement('option');
             opt.value = room; opt.textContent = room;
             roomSelect.appendChild(opt);
@@ -1071,19 +1079,27 @@ scrollArea.addEventListener('pointerup', (e) => {
             
             // 월~금인 경우에만 시간표 확인
             if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                // ✨ [수정] 같은 날, 같은 목적(반)을 가진 교시들을 하나로 묶기 위한 임시 그룹
+                const dailyGroups = {};
+                
                 for (let p = 1; p <= 6; p++) {
-                    if (timetable[dayOfWeek][p]) {
-// 💡 script.js 의 일괄 생성 루프 부분 (수정)
-                        const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(currentDate.getDate()).padStart(2,'0')}`;
-                        
-                        batchSchedules.push({
-                            date: dateString,
-                            room: roomName,
-                            periods: p + '교시',
-                            // ✨ purpose에 명확하게 입력받은 '반' 데이터(timetable[dayOfWeek][p])만 들어갑니다!
-                            purpose: timetable[dayOfWeek][p] 
-                        });
+                    const purposeStr = timetable[dayOfWeek][p];
+                    if (purposeStr) {
+                        if (!dailyGroups[purposeStr]) dailyGroups[purposeStr] = [];
+                        dailyGroups[purposeStr].push(p + '교시');
                     }
+                }
+
+                const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(currentDate.getDate()).padStart(2,'0')}`;
+                
+                // 💡 묶인 데이터들을 하나로 합쳐서 batchSchedules 배열에 넣기
+                for (const purpose in dailyGroups) {
+                    batchSchedules.push({
+                        date: dateString,
+                        room: roomName,
+                        periods: dailyGroups[purpose].join(', '), // "1교시, 2교시" 형태로 예쁘게 병합!
+                        purpose: purpose 
+                    });
                 }
             }
             // 하루 뒤로 이동
