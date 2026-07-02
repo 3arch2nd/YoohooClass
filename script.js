@@ -777,30 +777,36 @@ scrollArea.addEventListener('wheel', (e) => {
         toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
 
-    // 💡 표 렌더링 함수 (교체: 글자 줄바꿈 방지 적용)
-function renderScheduleTable(schedules) {
-    const tbody = document.getElementById('schedule-tbody');
-    tbody.innerHTML = '';
+    // (위쪽 코드들은 그대로 유지 ...)
     
-    schedules.forEach(item => {
-        const tr = document.createElement('tr');
+    // 💡 표 렌더링 함수 (교체: 글자 줄바꿈 방지 적용)
+    function renderScheduleTable(schedules) {
+        const tbody = document.getElementById('schedule-tbody');
+        tbody.innerHTML = '';
         
-        // ✨ '1교시, 2교시'를 각각 분리한 후, 줄바꿈 방지 <span> 태그로 감싸기
-        const periodsArr = String(item.periods).split(',').map(p => p.trim());
-        const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;">${p}</span>`).join(', ');
+        schedules.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            // ✨ '1교시, 2교시'를 각각 분리한 후, 줄바꿈 방지 <span> 태그로 감싸기
+            const periodsArr = String(item.periods).split(',').map(p => p.trim());
+            const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;">${p}</span>`).join(', ');
 
-        tr.innerHTML = `
-            <td>${currentFloor}층</td>
-            <td>${item.room}</td>
-            <td>${safePeriodsHtml}</td>
-            <td>${item.purpose}</td>
-            <td><button class="delete-schedule-btn">삭제</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
+            tr.innerHTML = `
+                <td>${currentFloor}층</td>
+                <td>${item.room}</td>
+                <td>${safePeriodsHtml}</td>
+                <td>${item.purpose}</td>
+                <td><button class="delete-schedule-btn">삭제</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
-    // 💡 [새로 추가] 말풍선 UI 생성 및 바디에 부착
+    // ==========================================
+    // 🚀 아래부터가 중복을 제거하고 깔끔하게 정리한 툴팁 로직입니다.
+    // ==========================================
+
+    // 💡 말풍선 UI 생성 및 바디에 부착 (한 번만 선언!)
     const tooltip = document.createElement('div');
     tooltip.className = 'room-tooltip hidden';
     document.body.appendChild(tooltip);
@@ -812,19 +818,7 @@ function renderScheduleTable(schedules) {
         }
     });
 
-// 💡 [수정] 툴팁 UI 생성 및 바디 부착 (이 부분은 그대로 유지)
-    const tooltip = document.createElement('div');
-    tooltip.className = 'room-tooltip hidden';
-    document.body.appendChild(tooltip);
-
-    // 💡 빈 공간 클릭 시 말풍선 닫기 (이 부분도 유지)
-    document.addEventListener('pointerdown', (e) => {
-        if (!tooltip.contains(e.target) && !e.target.closest('.room')) {
-            tooltip.classList.add('hidden');
-        }
-    });
-
-    // 💡 [변경] 아까 만들었던 click 이벤트를 함수 형태로 변경!
+    // 💡 말풍선 띄우기 함수
     function showRoomTooltip(room) {
         const roomName = room.querySelector('.room-name').textContent;
 
