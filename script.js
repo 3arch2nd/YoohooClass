@@ -155,14 +155,21 @@ function updateFloorPlanWithSchedules() {
         });
     }
 
-    // 🚀 서버에서 데이터 불러오기 (초기 1회)
-    // 💡 [수정] 서버에서 데이터 불러오기 직후 중앙 정렬 연동
+// 💡 [교체] 줌 배율이 완벽히 반영된 건물 전체 중심 정렬 함수
     function loadRoomsFromGas() {
+        const GRID_CENTER = 1758; // 그리드 전체의 중심점 고정값
+
         if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
-            updateGlobalBounds(); // 로컬용 계산
+            updateGlobalBounds(); // 건물 실제 경계 계산
+            
+            // 💡 [로컬용 수정] 현재 줌 배율(* zoom)을 반영하여 완벽한 시각적 중앙 정렬
+            panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
+            panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
+            
             renderFloor(currentFloor);
             return;
         }
+        
         showToast('서버에서 건물 도면을 불러오는 중... ⏳');
         fetch(MASTER_GAS_URL, {
             method: 'POST',
@@ -178,11 +185,10 @@ function updateFloorPlanWithSchedules() {
                 updateRoomSelect(result.roomList);
             }
             
-            // ✨ [1번 요청 해결] 데이터를 가져오자마자 건물 전체의 중심점을 찾아서 화면 중앙에 정렬!
+            // ✨ [핵심 수정] 건물 전체의 중심점을 찾아서 '현재 줌 배율(* zoom)'을 곱해 정중앙에 정렬!
             updateGlobalBounds();
-            const GRID_CENTER = 1758;
-            panX = -(globalBounds.centerPxX - GRID_CENTER);
-            panY = -(globalBounds.centerPxY - GRID_CENTER);
+            panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
+            panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
             
             renderFloor(currentFloor);
             showToast('✅ 데이터 로드 완료!');
@@ -190,6 +196,11 @@ function updateFloorPlanWithSchedules() {
         .catch(e => {
             showToast('⚠️ 불러오기 실패. 기본 데이터로 시작합니다.');
             updateGlobalBounds();
+            
+            // 💡 [에러 처리용 수정] 실패했을 때도 중심 균형 유지
+            panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
+            panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
+            
             renderFloor(currentFloor);
         });
     }
