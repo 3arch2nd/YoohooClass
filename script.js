@@ -156,40 +156,49 @@ function updateFloorPlanWithSchedules() {
     }
 
     // 🚀 서버에서 데이터 불러오기 (초기 1회)
+    // 💡 [수정] 서버에서 데이터 불러오기 직후 중앙 정렬 연동
     function loadRoomsFromGas() {
         if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
+            updateGlobalBounds(); // 로컬용 계산
             renderFloor(currentFloor);
             return;
         }
         showToast('서버에서 건물 도면을 불러오는 중... ⏳');
-fetch(MASTER_GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
-    })
-    .then(res => res.json())
-    .then(result => {
-        if (result.floorData) {
-            floorData = result.floorData;
-            currentFloor = floorData['1'] ? '1' : Object.keys(floorData).sort((a,b)=>a-b)[0];
-        }
-        
-        // 💡 교실 목록이 있다면 드롭다운 갱신
-        if (result.roomList) {
-            updateRoomSelect(result.roomList);
-        }
-        
-        renderFloor(currentFloor);
-        showToast('✅ 데이터 로드 완료!');
-    })
-
+        fetch(MASTER_GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.floorData) {
+                floorData = result.floorData;
+                currentFloor = floorData['1'] ? '1' : Object.keys(floorData).sort((a,b)=>a-b)[0];
+            }
+            if (result.roomList) {
+                updateRoomSelect(result.roomList);
+            }
+            
+            // ✨ [1번 요청 해결] 데이터를 가져오자마자 건물 전체의 중심점을 찾아서 화면 중앙에 정렬!
+            updateGlobalBounds();
+            const GRID_CENTER = 1758;
+            panX = -(globalBounds.centerPxX - GRID_CENTER);
+            panY = -(globalBounds.centerPxY - GRID_CENTER);
+            
+            renderFloor(currentFloor);
+            showToast('✅ 데이터 로드 완료!');
+        })
         .catch(e => {
             showToast('⚠️ 불러오기 실패. 기본 데이터로 시작합니다.');
+            updateGlobalBounds();
             renderFloor(currentFloor);
         });
     }
 
     let zoom = window.innerWidth < 800 ? 0.6 : 0.8; 
     let panX = 0, panY = 0;
+
+    // 💡 [추가] 건물 전체의 실제 교실 배치 경계선을 저장할 변수
+    let globalBounds = { bLeft: 0, bRight: 3516, bTop: 0, bBottom: 3516 };
 
 // script.js 끝부분에 아래 함수가 있는지 확인하세요!
 function updateRoomSelect(names) {
@@ -204,34 +213,77 @@ function updateRoomSelect(names) {
     });
 }
     
-// script.js
+// 💡 [새로 추가] 모든 층을 샅샅이 뒤져 교실들의 전체 경계(바운딩 박스)를 계산하는 함수
+function updateGlobalBounds() {
+    let globalMinCol = Infinity, globalMaxColEnd = -Infinity;
+    let globalMinRow = Infinity, globalMaxRowEnd = -Infinity;
+    let hasRooms = false;
+
+    for (let floor in floorData) {
+        const rooms = floorData[floor] || [];
+        rooms.forEach(room => {
+            hasRooms = true;
+            if (room.col < globalMinCol) globalMinCol = room.col;
+            if (room.col + room.w > globalMaxColEnd) globalMaxColEnd = room.col + room.w;
+            if (room.row < globalMinRow) globalMinRow = room.row;
+            if (room.row + room.h > globalMaxRowEnd) globalMaxRowEnd = room.row + room.h;
+        });
+    }
+
+    // 만약 도면에 방이 하나도 없다면 전체 그리드(3516px)를 기준으로 잡음
+    if (!hasRooms) {
+        globalBounds = { bLeft: 0, bRight: 3516, bTop: 0, bBottom: 3516, centerPxX: 1758, centerPxY: 1758 };
+        return;
+    }
+
+    // 그리드 한 칸은 40px + gap 4px = 44px 기준 물리 좌표 계산
+    globalBounds = {
+        bLeft: (globalMinCol - 1) * 44,
+        bRight: (globalMaxColEnd - 1) * 44 - 4,
+        bTop: (globalMinRow - 1) * 44,
+        bBottom: (globalMaxRowEnd - 1) * 44 - 4
+    };
+    globalBounds.centerPxX = (globalBounds.bLeft + globalBounds.bRight) / 2;
+    globalBounds.centerPxY = (globalBounds.bTop + globalBounds.bBottom) / 2;
+}
+
+// 💡 [교체] 화면 이탈 방지 잠금장치가 적용된 변환 함수
 function updateTransform() {
-    // 💡 건물이 화면 밖으로 이탈하지 않도록 범위 제한 (그리드 크기 80*40 = 3200px 기준)
-    const padding = 200; // 여백
-    const limitX = (80 * 40 * zoom) / 2 - padding;
-    const limitY = (80 * 40 * zoom) / 2 - padding;
-    
-    panX = Math.max(-limitX, Math.min(limitX, panX));
-    panY = Math.max(-limitY, Math.min(limitY, panY));
+    const GRID_CENTER = 1758; // 전체 그리드의 중심 (3516 / 2)
+    const viewW = scrollArea.clientWidth;
+    const viewH = scrollArea.clientHeight;
+
+    // ✨ [3번 요청 해결] 교실들이 화면 밖으로 완전히 탈출하지 못하도록 가드레일 한계선 설정 (100px 여백)
+    const edgePadding = 100; 
+
+    const panX_max = (viewW / 2) - edgePadding - (globalBounds.bLeft - GRID_CENTER) * zoom;
+    const panX_min = -(viewW / 2) + edgePadding - (globalBounds.bRight - GRID_CENTER) * zoom;
+    const panY_max = (viewH / 2) - edgePadding - (globalBounds.bTop - GRID_CENTER) * zoom;
+    const panY_min = -(viewH / 2) + edgePadding - (globalBounds.bBottom - GRID_CENTER) * zoom;
+
+    // 한계 범위 내로 드래그 가두기
+    if (panX_min <= panX_max) panX = Math.max(panX_min, Math.min(panX_max, panX));
+    if (panY_min <= panY_max) panY = Math.max(panY_min, Math.min(panY_max, panY));
     
     floorGrid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
 }
 
-    scrollArea.addEventListener('wheel', (e) => {
+// 💡 [교체] ✨ [2번 요청 해결] 마우스 포인터 완벽 고정형 줌인/아웃 리스너
+scrollArea.addEventListener('wheel', (e) => {
     e.preventDefault();
     
-    // 마우스 위치 기준 줌 계산
     const rect = scrollArea.getBoundingClientRect();
+    // 뷰포트 정중앙을 기준으로 마우스 포인터의 상대적 위치 계산
     const mouseX = e.clientX - rect.left - rect.width / 2;
     const mouseY = e.clientY - rect.top - rect.height / 2;
     
     const prevZoom = zoom;
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    zoom = Math.min(Math.max(0.4, zoom + delta), 2.5);
+    zoom = Math.min(Math.max(0.3, zoom + delta), 2.5); // 최소 0.3배 ~ 최대 2.5배 줌 설정
     
-    // 줌 확대 시 마우스 위치 유지
-    panX -= (mouseX / prevZoom) * (zoom - prevZoom);
-    panY -= (mouseY / prevZoom) * (zoom - prevZoom);
+    // 마우스 포인터가 가리키는 그리드의 물리적 위치를 보존하는 수학 공식
+    panX = mouseX - (mouseX - panX) * (zoom / prevZoom);
+    panY = mouseY - (mouseY - panY) * (zoom / prevZoom);
     
     updateTransform();
 }, { passive: false });
@@ -327,6 +379,7 @@ function updateTransform() {
             
             return { col: colStart, row: rowStart, w, h, name: room.querySelector('.room-name').textContent, info: info, status: status };
         });
+    updateGlobalBounds();
     }
 
     function renderFloorButtons() {
