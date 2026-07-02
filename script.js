@@ -776,6 +776,81 @@ function renderScheduleTable(schedules) {
     });
 }
 
+    // 💡 [새로 추가] 말풍선 UI 생성 및 바디에 부착
+    const tooltip = document.createElement('div');
+    tooltip.className = 'room-tooltip hidden';
+    document.body.appendChild(tooltip);
+
+    // 💡 빈 공간을 클릭하면 말풍선 닫기
+    document.addEventListener('pointerdown', (e) => {
+        if (!tooltip.contains(e.target) && !e.target.closest('.room')) {
+            tooltip.classList.add('hidden');
+        }
+    });
+
+    // 💡 평면도의 교실을 클릭했을 때 이벤트
+    floorGrid.addEventListener('click', (e) => {
+        // 편집 모드이거나, 편집 버튼을 눌렀을 때는 툴팁 안 띄움
+        if (floorGrid.classList.contains('edit-mode')) return; 
+        const editBtn = e.target.closest('.room-edit-btn');
+        if (editBtn) return;
+
+        const room = e.target.closest('.room:not(.onion-skin-room)');
+        if (!room) return;
+
+        const roomName = room.querySelector('.room-name').textContent;
+
+        // 1. 말풍선 위치 계산 (교실의 오른쪽 옆에 띄우기)
+        const rect = room.getBoundingClientRect();
+        let leftPos = rect.right + 15;
+        let topPos = rect.top;
+
+        // 만약 화면 오른쪽을 벗어날 것 같으면 교실 왼쪽에 띄움
+        if (leftPos + 240 > window.innerWidth) {
+            leftPos = rect.left - 240; 
+        }
+        
+        tooltip.style.left = `${leftPos}px`;
+        tooltip.style.top = `${topPos}px`;
+
+        // 2. 로딩 상태 표시
+        tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px;">일정 불러오는 중... ⏳</div>`;
+        tooltip.classList.remove('hidden');
+
+        if (!connectedSheetId) {
+            tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; font-size:12px; color:var(--text-light);">시트가 연결되지 않았습니다.</div>`;
+            return;
+        }
+
+        // 3. 서버에 해당 교실의 일정 요청
+        fetch(MASTER_GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'loadRoomSchedules', sheetId: connectedSheetId, room: roomName })
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (!result.schedules || result.schedules.length === 0) {
+                tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; padding:10px; font-size:12px; color:var(--text-light);">예정된 일정이 없습니다. ✨</div>`;
+                return;
+            }
+
+            // 4. 받아온 데이터를 바탕으로 HTML 생성
+            let html = `<div class="tooltip-title">${roomName} 일정 현황</div>`;
+            result.schedules.forEach(s => {
+                html += `
+                    <div class="tooltip-item">
+                        <div class="t-date">${s.dateStr}</div>
+                        <div>${s.periods} (${s.purpose})</div>
+                    </div>
+                `;
+            });
+            tooltip.innerHTML = html;
+        })
+        .catch(err => {
+            tooltip.innerHTML = `<div class="tooltip-title">${roomName}</div><div style="text-align:center; font-size:12px; color:red;">불러오기 실패 🐛</div>`;
+        });
+    });
+
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
     loadScheduleByDate(datePicker.value);
