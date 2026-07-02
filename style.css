@@ -143,7 +143,7 @@ body {
 .date-picker { padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; }
 .formatted-date-text { font-weight: bold; font-size: 15px; color: var(--primary); }
 
-.table-container { padding: 20px; overflow-y: auto; }
+.table-container { padding: 20px; overflow-y: auto; flex: 1; }
 .schedule-table { width: 100%; border-collapse: collapse; }
 .schedule-table th, .schedule-table td { border: 1px solid var(--border-color); padding: 10px 6px; text-align: center; font-size: 13px; }
 .schedule-table th { background-color: var(--bg-panel); font-weight: bold; }
@@ -273,7 +273,8 @@ body {
     border-radius: 4px; font-size: 13px; 
 }
 
-/* 💡 [추가] 전체 경고 메시지 컨테이너 (우측 패널 바닥 고정) */
+
+/* 💡 [수정] 전체 경고 메시지 컨테이너 */
 .global-warning-container {
     background-color: var(--bg-main);
     border-top: 1px solid var(--border-color);
@@ -283,6 +284,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     padding: 0;
+    margin-top: auto; /* ✨ 혹시 모를 상황을 대비해 바닥으로 완벽하게 밀착! */
 }
 
 .global-warning-container:not(:empty) {
