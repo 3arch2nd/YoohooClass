@@ -255,6 +255,17 @@ body {
     font-weight: bold;
 }
 
+/* 💡 [추가] 표 내부의 중복 일정 하이라이터 효과 */
+.schedule-table tr.overlapped-row td {
+    background-color: #fff1f2; /* 연한 핑크색 배경 */
+}
+
+.highlight-text {
+    /* ✨ 글씨 아래쪽 절반만 칠해지는 예쁜 붉은 형광펜 효과 */
+    background: linear-gradient(to top, #fecdd3 40%, transparent 40%);
+    font-weight: bold;
+}
+
 #custom-time-group { margin-top: 10px; width: 100%; }
 #custom-time-group input { 
     width: 100%; padding: 8px; 
