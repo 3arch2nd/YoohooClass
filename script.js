@@ -504,7 +504,7 @@ function updateTransform() {
     // [수정] script.js - 일정 추가 이벤트 로직 교체
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const checkedPeriods = Array.from(document.querySelectorAll('input[name="period"]:checked')).map(cb => cb.value);
+        const checkedPeriods = Array.from(document.querySelectorAll('input[name="period"]:checked')).map(cb => cb.value + '교시');
         if (checkedPeriods.length === 0) { showToast('최소 1개 이상의 교시를 선택해주세요.'); return; }
 
         const roomSelect = form.querySelector('select');
