@@ -723,24 +723,38 @@ scrollArea.addEventListener('pointerup', (e) => {
         .catch(error => showToast('저장 실패: 통신 오류'));
     });
 
+    // 💡 [수정] 일정 삭제 이벤트 (서버 검증 기능 및 좀비 버그 완벽 차단)
     document.getElementById('schedule-tbody').addEventListener('click', (e) => {
         if (e.target.classList.contains('delete-schedule-btn')) {
             const row = e.target.closest('tr');
-            const roomName = row.children[1].textContent;
-            const purpose = row.children[3].textContent;
+            // ✨ 빈칸(공백) 때문에 못 찾는 일이 없도록 .trim() 으로 여백을 깎아냅니다.
+            const roomName = row.children[1].textContent.trim();
+            const periods = row.children[2].textContent.trim();
+            const purpose = row.children[3].textContent.trim();
             const targetDate = datePicker.value;
 
             showConfirmModal(`[${roomName}]의 '${purpose}' 일정을 삭제하시겠습니까?`, () => {
                 if (!connectedSheetId || MASTER_GAS_URL.includes('여기에_마스터_주소')) {
-                    row.remove(); showToast('일정이 삭제되었습니다.'); return;
+                    row.remove(); showToast('일정이 임시 삭제되었습니다.'); return;
                 }
                 showToast('서버에서 일정을 삭제하는 중... ⏳');
+                
                 fetch(MASTER_GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, purpose: purpose })
+                    // ✨ periods(교시) 데이터도 추가로 보내서 더 정확하게 일정을 찾게 합니다.
+                    body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, periods: periods, purpose: purpose })
                 }).then(response => response.json()).then(result => {
-                    row.remove(); showToast('✅ ' + result.message);
-                }).catch(error => showToast('삭제 실패: 통신 오류'));
+                    // ✨ 핵심: 서버에서 "성공적으로 지웠다"고 확답을 줬을 때만 화면에서 지웁니다!
+                    if (result.result === 'success') {
+                        row.remove(); 
+                        showToast('✅ ' + result.message);
+                        
+                        // 🚀 삭제된 일정이 평면도 색상과 말풍선에도 즉시 반영되도록 렌더링 초기화
+                        loadScheduleByDate(targetDate);
+                    } else {
+                        showToast('❌ 삭제 실패: ' + result.message); // 못 찾았을 땐 화면에 그대로 둡니다.
+                    }
+                }).catch(error => showToast('❌ 삭제 실패: 통신 오류'));
             });
         }
     });
