@@ -996,4 +996,115 @@ scrollArea.addEventListener('pointerup', (e) => {
     loadRoomsFromGas();
     loadScheduleByDate(datePicker.value);
     loadGlobalWarnings();
+
+    // ==========================================
+    // 🚀 [새로 추가] 학기별 기본 시간표 일괄 세팅 로직
+    // ==========================================
+    const semSetupModal = document.getElementById('semester-setup-modal');
+    const semTimetableBody = document.getElementById('sem-timetable-body');
+
+    // 1. 5일 x 6교시 입력 표 자동 생성
+    for (let p = 1; p <= 6; p++) {
+        const tr = document.createElement('tr');
+        let html = `<td>${p}교시</td>`;
+        for (let d = 1; d <= 5; d++) { // 1:월 ~ 5:금
+            html += `<td><input type="text" id="sem-input-${d}-${p}" placeholder="-"></td>`;
+        }
+        tr.innerHTML = html;
+        semTimetableBody.appendChild(tr);
+    }
+
+    // 2. 모달 열기 이벤트 (방 목록 불러오기)
+    document.getElementById('open-semester-setup-btn').addEventListener('click', () => {
+        const roomSelect = document.getElementById('sem-room-select');
+        roomSelect.innerHTML = '';
+        const activeRooms = new Set();
+        for (let floor in floorData) {
+            floorData[floor].forEach(r => {
+                if (r.status !== 'status-unavailable') activeRooms.add(r.name);
+            });
+        }
+        activeRooms.forEach(room => {
+            const opt = document.createElement('option');
+            opt.value = room; opt.textContent = room;
+            roomSelect.appendChild(opt);
+        });
+
+        document.getElementById('settings-modal').classList.add('hidden'); // 기존 설정창 닫기
+        semSetupModal.classList.remove('hidden'); // 시간표 세팅창 열기
+    });
+
+    document.getElementById('close-sem-setup-btn').addEventListener('click', () => {
+        semSetupModal.classList.add('hidden');
+    });
+
+    // 3. 폼 전송 (날짜 연산 및 일괄 데이터 생성)
+    document.getElementById('sem-setup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const startStr = document.getElementById('sem-start-date').value;
+        const endStr = document.getElementById('sem-end-date').value;
+        const roomName = document.getElementById('sem-room-select').value;
+        
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        if (start > end) { showToast('❌ 종료일이 시작일보다 빠를 수 없습니다.'); return; }
+        
+        // 3-1. 시간표에서 입력된 값만 추출하여 Map으로 저장 (timetable[요일][교시] = '반')
+        const timetable = {};
+        let hasInput = false;
+        for (let d = 1; d <= 5; d++) {
+            timetable[d] = {};
+            for (let p = 1; p <= 6; p++) {
+                const val = document.getElementById(`sem-input-${d}-${p}`).value.trim();
+                if (val) { timetable[d][p] = val; hasInput = true; }
+            }
+        }
+        
+        if (!hasInput) { showToast('❌ 시간표에 최소 1개 이상의 학급을 입력해 주세요.'); return; }
+
+        // 3-2. 시작일부터 종료일까지 루프를 돌며 일정 데이터 조립!
+        let batchSchedules = [];
+        let currentDate = new Date(start);
+        
+        while (currentDate <= end) {
+            const dayOfWeek = currentDate.getDay(); // 0:일, 1:월, ... 5:금, 6:토
+            
+            // 월~금인 경우에만 시간표 확인
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                for (let p = 1; p <= 6; p++) {
+                    if (timetable[dayOfWeek][p]) {
+                        const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}-${String(currentDate.getDate()).padStart(2,'0')}`;
+                        batchSchedules.push({
+                            date: dateString,
+                            room: roomName,
+                            periods: p + '교시',
+                            purpose: timetable[dayOfWeek][p] // 여기에 '3-2' 같은 값이 들어감
+                        });
+                    }
+                }
+            }
+            // 하루 뒤로 이동
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (batchSchedules.length === 0) { showToast('❌ 선택한 기간 내에 평일(월~금)이 없습니다.'); return; }
+
+        // 3-3. 서버로 전송 (엄청난 양이므로 Batch Action 사용)
+        showToast(`총 ${batchSchedules.length}개의 기본 일정을 쏟아붓는 중... 🚀`);
+        fetch(MASTER_GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'batchAddSchedules', sheetId: connectedSheetId, schedules: batchSchedules })
+        })
+        .then(res => res.json())
+        .then(result => {
+            showToast('✅ ' + result.message);
+            semSetupModal.classList.add('hidden');
+            document.getElementById('sem-setup-form').reset();
+            
+            // 데이터 저장 후 화면 새로고침
+            loadScheduleByDate(document.getElementById('current-date').value);
+            loadGlobalWarnings();
+        })
+        .catch(err => showToast('❌ 일괄 등록 실패: 통신 오류'));
+    });
 });
