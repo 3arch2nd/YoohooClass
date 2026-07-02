@@ -652,15 +652,44 @@ scrollArea.addEventListener('pointerup', (e) => {
         modal.classList.add('hidden'); form.reset(); repeatEndGroup.classList.add('hidden');
     });
 
-    // [수정] script.js - 일정 추가 이벤트 로직 교체
+    // 💡 [수정] 직접 입력 체크박스 토글 이벤트 추가 (script.js 어딘가에 추가)
+    const customTimeCb = document.getElementById('custom-time-cb');
+    const customTimeGroup = document.getElementById('custom-time-group');
+    const customTimeInput = document.getElementById('custom-time-input');
+    
+    if (customTimeCb) {
+        customTimeCb.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                customTimeGroup.classList.remove('hidden');
+                customTimeInput.setAttribute('required', 'true');
+            } else {
+                customTimeGroup.classList.add('hidden');
+                customTimeInput.removeAttribute('required');
+                customTimeInput.value = '';
+            }
+        });
+    }
+
+    // 💡 [수정] 일정 추가 이벤트 로직 교체 (교시 문자열 생성 부분)
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const checkedPeriods = Array.from(document.querySelectorAll('input[name="period"]:checked')).map(cb => cb.value + '교시');
-        if (checkedPeriods.length === 0) { showToast('최소 1개 이상의 교시를 선택해주세요.'); return; }
+        
+        let checkedPeriods = [];
+        document.querySelectorAll('input[name="period"]:checked').forEach(cb => {
+            if (cb.value === 'custom') {
+                const customVal = customTimeInput.value.trim();
+                if (customVal) checkedPeriods.push(customVal);
+            } else {
+                checkedPeriods.push(cb.value + '교시');
+            }
+        });
+
+        if (checkedPeriods.length === 0) { 
+            showToast('최소 1개 이상의 교시 또는 시간을 입력해주세요.'); 
+            return; 
+        }
 
         const roomSelect = form.querySelector('select');
-        
-        // 💡 [추가된 로직] 반복 일정 여부 확인 및 종료일 설정
         const isRepeat = document.getElementById('repeat-toggle').checked;
         const endDate = isRepeat ? document.getElementById('modal-end-date').value : document.getElementById('modal-start-date').value;
 
@@ -668,9 +697,9 @@ scrollArea.addEventListener('pointerup', (e) => {
             action: 'addSchedule',
             sheetId: connectedSheetId, 
             date: document.getElementById('modal-start-date').value,
-            endDate: endDate, // 💡 서버로 종료일 함께 전송
+            endDate: endDate, 
             room: roomSelect.value, 
-            periods: checkedPeriods,
+            periods: checkedPeriods, // 💡 커스텀 시간이 포함된 배열 전송
             purpose: document.getElementById('schedule-purpose').value
         };
 
@@ -873,13 +902,16 @@ scrollArea.addEventListener('pointerup', (e) => {
                 return;
             }
 
-            // 4. 받아온 데이터를 바탕으로 HTML 생성
+// 4. 받아온 데이터를 바탕으로 HTML 생성 (형광펜 효과 적용)
             let html = `<div class="tooltip-title">${roomName} 일정 현황</div>`;
             result.schedules.forEach(s => {
+                // ✨ 서버에서 중복이라고 판별했다면 'overlapped' 클래스 추가
+                const overlapClass = s.isOverlapped ? 'overlapped' : '';
+                
                 html += `
-                    <div class="tooltip-item">
+                    <div class="tooltip-item ${overlapClass}">
                         <div class="t-date">${s.dateStr}</div>
-                        <div>${s.periods} (${s.purpose})</div>
+                        <div><span class="${s.isOverlapped ? 'highlight-text' : ''}">${s.periods}</span> (${s.purpose})</div>
                     </div>
                 `;
             });
