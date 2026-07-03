@@ -99,10 +99,36 @@ function updateFloorPlanWithSchedules() {
 
 
     
-    // 모바일 경고 제어
+    // 💡 [수정] 모바일 경고 제어 및 화면 뷰(UI) 전환 로직
     const warningLayer = document.getElementById('mobile-warning');
     const closeWarningBtn = document.getElementById('close-warning-btn');
-    if (closeWarningBtn) closeWarningBtn.addEventListener('click', () => warningLayer.style.display = 'none');
+
+    if (closeWarningBtn) {
+        closeWarningBtn.addEventListener('click', () => {
+            // ✨ 1. CSS의 !important 강제 속성을 뚫고 경고창 완벽하게 숨기기 (버튼 안 먹던 버그 해결)
+            warningLayer.style.setProperty('display', 'none', 'important');
+            
+            // ✨ 2. 좁은 화면을 위해 좌측 층수 네비게이션과 평면도 숨기기
+            const floorNav = document.querySelector('.floor-nav');
+            const floorPlanSection = document.querySelector('.floor-plan-section');
+            const planHeader = document.querySelector('.floor-plan-section .section-header');
+            const planScroll = document.querySelector('.floor-plan-scroll-area');
+            
+            if (floorNav) floorNav.style.setProperty('display', 'none', 'important');
+            if (planHeader) planHeader.style.setProperty('display', 'none', 'important');
+            if (planScroll) planScroll.style.setProperty('display', 'none', 'important');
+            
+            // ✨ 3. 평면도 껍데기 영역을 완전히 접어서 '일정표'가 화면을 100% 꽉 채우도록 설정 
+            // (단, 우측 하단의 '+' 일정 추가 버튼은 모바일에서도 쓰실 수 있도록 살려두었습니다!)
+            if (floorPlanSection) {
+                floorPlanSection.style.flex = '0';
+                floorPlanSection.style.border = 'none';
+                floorPlanSection.style.minWidth = '0';
+            }
+            
+            showToast('📱 모바일 뷰 모드: 일정표만 표시됩니다.');
+        });
+    }
 
     // 공통 모달
     let confirmCallback = null;
