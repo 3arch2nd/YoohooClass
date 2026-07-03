@@ -1270,5 +1270,4 @@ showToast(`🚀 일정 일괄 등록 중... (${i + 1} ~ ${Math.min(i + CHUNK_SIZ
         // 분할 전송 시작!
         sendBatchSchedules();
     });
-
-}); // ✨ 이렇게 닫아주셔야 파일 전체가 정상 작동합니다!
+});
