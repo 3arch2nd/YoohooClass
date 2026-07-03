@@ -221,14 +221,14 @@ let zoom = window.innerWidth < 800 ? 0.6 : 0.8;
     if (zoomSlider) zoomSlider.value = zoom; // 초기화
 
     function applyZoom(newZoom) {
-        zoom = Math.min(Math.max(0.3, newZoom), 2.5);
+        zoom = Math.min(Math.max(0.4, newZoom), 1.5);
         if (zoomSlider) zoomSlider.value = zoom;
         updateTransform();
     }
 
     if (zoomSlider) zoomSlider.addEventListener('input', (e) => applyZoom(parseFloat(e.target.value)));
-    if (zoomInBtn) zoomInBtn.addEventListener('click', () => applyZoom(zoom + 0.1));
-    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => applyZoom(zoom - 0.1));
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => applyZoom(zoom + 0.05));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => applyZoom(zoom - 0.05));
 
     let globalBounds = { bLeft: 0, bRight: 3516, bTop: 0, bBottom: 3516 };
 
@@ -304,8 +304,8 @@ function updateTransform() {
         const mouseY = e.clientY - rect.top - rect.height / 2;
         
         const prevZoom = zoom;
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        zoom = Math.min(Math.max(0.3, zoom + delta), 2.5); 
+        const delta = e.deltaY > 0 ? -0.05 : 0.05;
+        zoom = Math.min(Math.max(0.4, zoom + delta), 1.5); 
 
         if (zoomSlider) zoomSlider.value = zoom;
 
