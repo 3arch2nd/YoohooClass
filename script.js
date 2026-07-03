@@ -182,18 +182,19 @@ function updateFloorPlanWithSchedules() {
         });
     }
 
-// 💡 [교체] 줌 배율이 완벽히 반영된 건물 전체 중심 정렬 함수
+// 💡 [수정] 도면을 완벽히 그린 후에만 일정을 불러오도록 순서(순차 로딩) 고정!
     function loadRoomsFromGas() {
-        const GRID_CENTER = 1758; // 그리드 전체의 중심점 고정값
+        const GRID_CENTER = 1758; 
 
         if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
-            updateGlobalBounds(); // 건물 실제 경계 계산
-            
-            // 💡 [로컬용 수정] 현재 줌 배율(* zoom)을 반영하여 완벽한 시각적 중앙 정렬
+            updateGlobalBounds(); 
             panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
             panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
-            
             renderFloor(currentFloor);
+            
+            // 🚀 로컬일 때도 도면 로드 후 일정 호출
+            loadScheduleByDate(document.getElementById('current-date').value);
+            loadGlobalWarnings();
             return;
         }
         
@@ -212,23 +213,26 @@ function updateFloorPlanWithSchedules() {
                 updateRoomSelect(result.roomList);
             }
             
-            // ✨ [핵심 수정] 건물 전체의 중심점을 찾아서 '현재 줌 배율(* zoom)'을 곱해 정중앙에 정렬!
             updateGlobalBounds();
             panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
             panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
             
             renderFloor(currentFloor);
-            showToast('데이터 로드 완료!');
+            showToast('✅ 건물 데이터 로드 완료!');
+
+            // ✨ [핵심] 건물 도면이 화면에 100% 완성된 직후에 일정을 불러옵니다! (여기서 ?층 오류 원천 차단)
+            loadScheduleByDate(document.getElementById('current-date').value);
+            loadGlobalWarnings();
         })
         .catch(e => {
-            showToast('불러오기 실패. 기본 데이터로 시작합니다.');
+            showToast('⚠️ 불러오기 실패. 기본 데이터로 시작합니다.');
             updateGlobalBounds();
-            
-            // 💡 [에러 처리용 수정] 실패했을 때도 중심 균형 유지
             panX = -(globalBounds.centerPxX - GRID_CENTER) * zoom;
             panY = -(globalBounds.centerPxY - GRID_CENTER) * zoom;
-            
             renderFloor(currentFloor);
+            
+            // 오류 시에도 일정은 로드 시도
+            loadScheduleByDate(document.getElementById('current-date').value);
         });
     }
 
@@ -1134,22 +1138,45 @@ scrollArea.addEventListener('pointerup', (e) => {
 
         if (batchSchedules.length === 0) { showToast('❌ 선택한 기간 내에 평일(월~금)이 없습니다.'); return; }
 
-        // 3-3. 서버로 전송 (엄청난 양이므로 Batch Action 사용)
-        showToast(`총 ${batchSchedules.length}개의 기본 일정을 생성하는 중... 🚀`);
-        fetch(MASTER_GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'batchAddSchedules', sheetId: connectedSheetId, schedules: batchSchedules })
-        })
-        .then(res => res.json())
-        .then(result => {
-            showToast('✅ ' + result.message);
-            semSetupModal.classList.add('hidden');
-            document.getElementById('sem-setup-form').reset();
+        // 3-3. 서버로 전송 (엄청난 양의 데이터를 200개씩 쪼개서 안정적으로 보내기)
+        if (batchSchedules.length === 0) { showToast('❌ 선택한 기간 내에 평일(월~금)이 없습니다.'); return; }
+        
+        const CHUNK_SIZE = 200; // 한 번에 보낼 데이터 묶음 크기 (과부하 방지)
+        semSetupModal.classList.add('hidden'); // 모달을 먼저 닫아줍니다.
+        
+        // 🚀 비동기(Async) 함수를 이용해 200개가 완료되면 다음 200개를 보내는 똑똑한 루프
+        async function sendBatchSchedules() {
+            let successCount = 0;
+            let hasError = false;
             
-            // 데이터 저장 후 화면 새로고침
-            loadScheduleByDate(document.getElementById('current-date').value);
-            loadGlobalWarnings();
-        })
-        .catch(err => showToast('❌ 일괄 등록 실패: 통신 오류'));
+            for (let i = 0; i < batchSchedules.length; i += CHUNK_SIZE) {
+                const chunk = batchSchedules.slice(i, i + CHUNK_SIZE);
+                showToast(`🚀 일정 일괄 등록 중... (${i + 1} ~ ${Math.min(i + CHUNK_SIZE, batchSchedules.length)} / ${batchSchedules.length}) ⏳`);
+                
+                try {
+                    const res = await fetch(MASTER_GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'batchAddSchedules', sheetId: connectedSheetId, schedules: chunk })
+                    });
+                    const result = await res.json();
+                    successCount += chunk.length;
+                } catch(e) {
+                    hasError = true;
+                    showToast('❌ 통신 오류: 데이터가 너무 많아 중간에 끊겼습니다.');
+                    break; // 에러가 나면 전송을 즉시 중단합니다.
+                }
+            }
+            
+            if (!hasError) {
+                showToast(`✅ 총 ${successCount}개의 기본 일정이 완벽하게 등록되었습니다! 🎉`);
+                document.getElementById('sem-setup-form').reset();
+                
+                // 모든 데이터가 시트에 꽂힌 후 화면을 갱신합니다.
+                loadScheduleByDate(document.getElementById('current-date').value);
+                loadGlobalWarnings();
+            }
+        }
+        
+        // 분할 전송 시작!
+        sendBatchSchedules();
     });
-});
