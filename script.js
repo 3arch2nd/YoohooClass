@@ -759,39 +759,159 @@ scrollArea.addEventListener('pointerup', (e) => {
         .catch(error => showToast('저장 실패: 통신 오류'));
     });
 
-    // 💡 [수정] 일정 삭제 이벤트 (서버 검증 기능 및 좀비 버그 완벽 차단)
+    // 💡 [수정] 표 렌더링 함수 (아코디언 그룹화 및 층/이름 정렬)
+    function renderScheduleTable(schedules) {
+        const tbody = document.getElementById('schedule-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        // 1. 중복 일정 검사
+        for (let i = 0; i < schedules.length; i++) {
+            schedules[i].isOverlapped = false;
+            for (let j = 0; j < schedules.length; j++) {
+                if (i !== j && schedules[i].room === schedules[j].room) {
+                    const p1 = String(schedules[i].periods).split(',').map(p => p.trim());
+                    const p2 = String(schedules[j].periods).split(',').map(p => p.trim());
+                    const hasOverlap = p1.some(p => p2.includes(p));
+                    if (hasOverlap) schedules[i].isOverlapped = true;
+                }
+            }
+        }
+
+        // 2. 실제 층수 찾기
+        schedules.forEach(item => {
+            item.actualFloorNum = 999; 
+            item.actualFloorStr = '?';
+            for (let floorNum in floorData) {
+                if (floorData[floorNum].some(room => room.name === item.room)) {
+                    item.actualFloorNum = parseInt(floorNum);
+                    item.actualFloorStr = floorNum;
+                    break;
+                }
+            }
+        });
+
+        // ✨ 3. [핵심] 같은 교실(Room)별로 일정 묶기 (그룹화)
+        const groupedSchedules = {};
+        schedules.forEach(item => {
+            if (!groupedSchedules[item.room]) {
+                groupedSchedules[item.room] = {
+                    actualFloorNum: item.actualFloorNum,
+                    actualFloorStr: item.actualFloorStr,
+                    room: item.room,
+                    allPeriods: new Set(),
+                    hasOverlap: false,
+                    items: [] // 세부 일정들
+                };
+            }
+            
+            // 이 방의 모든 교시를 하나로 모음
+            const periodsArr = String(item.periods).split(',').map(p => p.trim());
+            periodsArr.forEach(p => groupedSchedules[item.room].allPeriods.add(p));
+            if (item.isOverlapped) groupedSchedules[item.room].hasOverlap = true;
+            
+            groupedSchedules[item.room].items.push(item);
+        });
+
+        // 4. 층별(오름차순) -> 같은 층이면 방 이름(가나다순) 정렬
+        const sortedGroups = Object.values(groupedSchedules).sort((a, b) => {
+            if (a.actualFloorNum !== b.actualFloorNum) return a.actualFloorNum - b.actualFloorNum;
+            return a.room.localeCompare(b.room, 'ko-KR'); 
+        });
+        
+        // 5. 표 그리기 (대표 그룹 행 + 세부 일정 행)
+        sortedGroups.forEach((group, index) => {
+            // 5-1. 대표 행 (접혀있을 때 보이는 부분)
+            const headerTr = document.createElement('tr');
+            headerTr.className = 'room-group-header';
+            headerTr.dataset.index = index; // 클릭 이벤트를 위한 고유 번호
+            if (group.hasOverlap) headerTr.classList.add('overlapped-row');
+
+            const sortedPeriods = Array.from(group.allPeriods).sort();
+            const periodsHtml = sortedPeriods.map(p => `<span style="white-space: nowrap;" class="${group.hasOverlap ? 'highlight-text' : ''}">${p}</span>`).join(', ');
+
+            headerTr.innerHTML = `
+                <td><b>${group.actualFloorStr}층</b></td>
+                <td><b>${group.room}</b> <span class="toggle-icon">▼</span></td>
+                <td>${periodsHtml}</td>
+                <td style="color: #9ca3af;">-</td>
+                <td style="color: #9ca3af;">-</td>
+            `;
+            tbody.appendChild(headerTr);
+
+            // 5-2. 세부 일정 행 (펼쳤을 때 보이는 부분)
+            group.items.forEach(item => {
+                const detailTr = document.createElement('tr');
+                // 기본적으로 detail-hidden 클래스를 넣어 숨겨둡니다.
+                detailTr.className = `room-group-detail detail-for-${index} detail-hidden`;
+                detailTr.dataset.room = item.room; // 삭제 기능을 위해 방 이름 숨겨두기
+                if (item.isOverlapped) detailTr.classList.add('overlapped-row');
+                
+                const itemPeriods = String(item.periods).split(',').map(p => p.trim());
+                const safePeriodsHtml = itemPeriods.map(p => `<span style="white-space: nowrap;" class="${item.isOverlapped ? 'highlight-text' : ''}">${p}</span>`).join(', ');
+
+                detailTr.innerHTML = `
+                    <td style="border-right: none; color: #d1d5db;">↳</td>
+                    <td style="border-left: none; text-align: left; padding-left: 10px; color: var(--text-light);">세부 일정</td>
+                    <td>${safePeriodsHtml}</td>
+                    <td>${item.purpose}</td>
+                    <td><button class="delete-schedule-btn">삭제</button></td>
+                `;
+                tbody.appendChild(detailTr);
+            });
+        });
+    }
+
+    // 💡 [수정] 일정 테이블 클릭 통합 이벤트 (아코디언 토글 + 일정 삭제 기능 통합)
     document.getElementById('schedule-tbody').addEventListener('click', (e) => {
+        
+        // 🚀 기능 1: 아코디언 접기/펴기 로직
+        const headerRow = e.target.closest('.room-group-header');
+        if (headerRow) {
+            const index = headerRow.dataset.index;
+            const isExpanded = headerRow.classList.contains('expanded');
+
+            // 다른 열려있는 모든 방을 먼저 닫기 (상호작용)
+            document.querySelectorAll('.room-group-header.expanded').forEach(header => {
+                header.classList.remove('expanded');
+                const idx = header.dataset.index;
+                document.querySelectorAll(`.detail-for-${idx}`).forEach(detail => detail.classList.add('detail-hidden'));
+            });
+
+            // 방금 클릭한 방이 닫혀있었다면 열어주기
+            if (!isExpanded) {
+                headerRow.classList.add('expanded');
+                document.querySelectorAll(`.detail-for-${index}`).forEach(detail => detail.classList.remove('detail-hidden'));
+            }
+            return; // 클릭 후 종료
+        }
+
+        // 🚀 기능 2: 일정 삭제 기능 (수정됨)
         if (e.target.classList.contains('delete-schedule-btn')) {
             const row = e.target.closest('tr');
             
-            // ✨ 빈칸(공백) 때문에 못 찾는 일이 없도록 .trim() 으로 여백을 깎아냅니다.
-            const roomName = row.children[1].textContent.trim();
-            // 🚀 이 부분이 빠져있었습니다! 표의 3번째 칸(index 2)에서 '교시' 데이터를 추출합니다.
+            // 세부 일정 행에 숨겨둔(dataset) 진짜 방 이름을 가져옵니다.
+            const roomName = row.dataset.room; 
             const periods = row.children[2].textContent.trim(); 
             const purpose = row.children[3].textContent.trim();
-            const targetDate = datePicker.value;
+            const targetDate = document.getElementById('current-date').value;
 
             showConfirmModal(`[${roomName}]의 '${purpose}' 일정을 삭제하시겠습니까?`, () => {
-                if (!connectedSheetId || MASTER_GAS_URL.includes('여기에_마스터_주소')) {
+                if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
                     row.remove(); showToast('일정이 임시 삭제되었습니다.'); return;
                 }
                 showToast('서버에서 일정을 삭제하는 중... ⏳');
                 
                 fetch(MASTER_GAS_URL, {
                     method: 'POST',
-                    // ✨ periods: periods 데이터를 반드시 포함해서 보내야 서버가 알아먹습니다!
                     body: JSON.stringify({ action: 'deleteSchedule', sheetId: connectedSheetId, date: targetDate, room: roomName, periods: periods, purpose: purpose })
                 }).then(response => response.json()).then(result => {
-                    // ✨ 핵심: 서버에서 "성공적으로 지웠다"고 확답을 줬을 때만 화면에서 지웁니다!
                     if (result.result === 'success') {
-                        row.remove(); 
                         showToast('✅ ' + result.message);
-                        
-                        // 🚀 삭제된 일정이 평면도 색상과 말풍선에도 즉시 반영되도록 렌더링 초기화
                         loadScheduleByDate(targetDate);
                         loadGlobalWarnings();
                     } else {
-                        showToast('❌ 삭제 실패: ' + result.message); // 못 찾았을 땐 화면에 그대로 둡니다.
+                        showToast('❌ 삭제 실패: ' + result.message);
                     }
                 }).catch(error => showToast('❌ 삭제 실패: 통신 오류'));
             });
@@ -884,65 +1004,6 @@ scrollArea.addEventListener('pointerup', (e) => {
             }
         })
         .catch(e => console.error('경고 로드 실패'));
-    }
-    
-    // 💡 [수정] 표 렌더링 함수 (층별 정렬 -> 가나다순 정렬 추가)
-    function renderScheduleTable(schedules) {
-        const tbody = document.getElementById('schedule-tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        
-        // 1. 중복 일정 검사
-        for (let i = 0; i < schedules.length; i++) {
-            schedules[i].isOverlapped = false;
-            for (let j = 0; j < schedules.length; j++) {
-                if (i !== j && schedules[i].room === schedules[j].room) {
-                    const p1 = String(schedules[i].periods).split(',').map(p => p.trim());
-                    const p2 = String(schedules[j].periods).split(',').map(p => p.trim());
-                    const hasOverlap = p1.some(p => p2.includes(p));
-                    if (hasOverlap) schedules[i].isOverlapped = true;
-                }
-            }
-        }
-
-        // ✨ [핵심 추가 1] 정렬을 위해 각 일정에 '진짜 층수'를 먼저 찾아 넣어줍니다.
-        schedules.forEach(item => {
-            item.actualFloorNum = 999; // 도면에서 못 찾은 방은 맨 아래로 빼기 위한 기본값
-            item.actualFloorStr = '?';
-            for (let floorNum in floorData) {
-                if (floorData[floorNum].some(room => room.name === item.room)) {
-                    item.actualFloorNum = parseInt(floorNum);
-                    item.actualFloorStr = floorNum;
-                    break;
-                }
-            }
-        });
-
-        // ✨ [핵심 추가 2] 층수(오름차순) 정렬 후 -> 같은 층이면 이름(가나다순) 정렬!
-        schedules.sort((a, b) => {
-            if (a.actualFloorNum !== b.actualFloorNum) {
-                return a.actualFloorNum - b.actualFloorNum; // 1층, 2층, 3층 순서
-            }
-            return a.room.localeCompare(b.room, 'ko-KR'); // 층이 같으면 ㄱ, ㄴ, ㄷ 순서
-        });
-        
-        // 2. 표 그리기
-        schedules.forEach(item => {
-            const tr = document.createElement('tr');
-            if (item.isOverlapped) tr.className = 'overlapped-row';
-            
-            const periodsArr = String(item.periods).split(',').map(p => p.trim());
-            const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;" class="${item.isOverlapped ? 'highlight-text' : ''}">${p}</span>`).join(', ');
-
-            tr.innerHTML = `
-                <td>${item.actualFloorStr}층</td>
-                <td>${item.room}</td>
-                <td>${safePeriodsHtml}</td>
-                <td>${item.purpose}</td>
-                <td><button class="delete-schedule-btn">삭제</button></td>
-            `;
-            tbody.appendChild(tr);
-        });
     }
 
     // ==========================================
