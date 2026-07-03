@@ -38,8 +38,14 @@
                 </label>
             </header>
             
-            <div class="floor-plan-scroll-area">
+<div class="floor-plan-scroll-area">
                 <div class="floor-plan-grid" id="floor-plan-grid"></div>
+            </div>
+
+            <div class="zoom-controls" id="zoom-controls">
+                <button id="zoom-out-btn">-</button>
+                <input type="range" id="zoom-slider" min="0.3" max="2.5" step="0.1">
+                <button id="zoom-in-btn">+</button>
             </div>
 
             <button class="fab" id="add-schedule-btn">+</button>
