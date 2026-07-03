@@ -126,7 +126,7 @@ function updateFloorPlanWithSchedules() {
                 floorPlanSection.style.minWidth = '0';
             }
             
-            showToast('📱 모바일 뷰 모드: 일정표만 표시됩니다.');
+            showToast('모바일 뷰 모드: 일정표만 표시됩니다.');
         });
     }
 
@@ -970,16 +970,33 @@ scrollArea.addEventListener('pointerup', (e) => {
         settingsConnectedView.classList.add('hidden'); settingsUnconnectedView.classList.remove('hidden');
     });
 
+// 💡 [수정] 똑똑해진 토스트 메시지 함수 (로딩 애니메이션 및 지속 시간 제어)
     let toastTimeout; 
-    function showToast(message) {
+    function showToast(message, isLoading = false) {
         const container = document.getElementById('toast-container');
         let toast = container.querySelector('.toast');
         if (!toast) {
-            toast = document.createElement('div'); toast.className = 'toast'; container.appendChild(toast);
+            toast = document.createElement('div'); 
+            toast.className = 'toast'; 
+            container.appendChild(toast);
         }
-        toast.textContent = message; toast.style.opacity = '1';
+        
+        // ✨ 로딩 중이면 애니메이션(점)을 추가하고 HTML로 렌더링
+        if (isLoading) {
+            toast.innerHTML = message + '<span class="loading-dots"></span>';
+        } else {
+            toast.textContent = message; // 일반 메시지는 텍스트로 처리
+        }
+        
+        toast.style.opacity = '1';
+        
+        // 기존 타이머 무조건 초기화
         if (toastTimeout) clearTimeout(toastTimeout);
-        toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        
+        // ✨ [핵심] 로딩 중(isLoading이 true)이 '아닐 때만' 3초 뒤에 사라지게 세팅합니다!
+        if (!isLoading) {
+            toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        }
     }
 
 // 💡 [추가] 서버에서 전체 중복 경고를 불러와 바닥에 차곡차곡 쌓는 함수
