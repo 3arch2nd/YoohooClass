@@ -43,8 +43,8 @@ datePicker.addEventListener('change', (e) => {
 // 💡 특정 날짜의 일정 불러오기 함수 (교체)
 function loadScheduleByDate(date) {
     if (!connectedSheetId) return;
-    
-    showToast(`${date} 일정을 불러오는 중... ⏳`);
+// 기존: showToast(`${date} 일정을 불러오는 중... ⏳`);
+showToast(`${date} 일정을 불러오는 중... ⏳`, true); // 💡 끝에 , true 추가
     fetch(MASTER_GAS_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'loadSchedules', sheetId: connectedSheetId, date: date })
@@ -163,7 +163,8 @@ function updateFloorPlanWithSchedules() {
             return;
         }
         
-        showToast('서버에 평면도를 안전하게 저장하는 중... ⏳');
+// 기존: showToast('서버에 평면도를 안전하게 저장하는 중... ⏳');
+showToast('서버에 평면도를 안전하게 저장하는 중... ⏳', true); // 💡 끝에 , true 추가
         fetch(MASTER_GAS_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'saveRooms', sheetId: connectedSheetId, floorData: floorData })
@@ -197,8 +198,8 @@ function updateFloorPlanWithSchedules() {
             loadGlobalWarnings();
             return;
         }
-        
-        showToast('서버에서 건물 도면을 불러오는 중... ⏳');
+// 기존: showToast('서버에서 건물 도면을 불러오는 중... ⏳');
+showToast('서버에서 건물 도면을 불러오는 중... ⏳', true); // 💡 끝에 , true 추가
         fetch(MASTER_GAS_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'loadData', sheetId: connectedSheetId })
@@ -742,8 +743,8 @@ scrollArea.addEventListener('pointerup', (e) => {
             modal.classList.add('hidden'); showToast(`[시트 미연결] 일정이 임시 기록되었습니다.`);
             form.reset(); repeatEndGroup.classList.add('hidden'); return;
         }
-
-        showToast('서버에 일정을 저장하는 중... ⏳');
+// 기존: showToast('서버에 일정을 저장하는 중... ⏳');
+showToast('서버에 일정을 저장하는 중... ⏳', true); // 💡 끝에 , true 추가
         fetch(MASTER_GAS_URL, { method: 'POST', body: JSON.stringify(scheduleData) })
         .then(response => response.json())
         .then(result => {
@@ -900,7 +901,8 @@ scrollArea.addEventListener('pointerup', (e) => {
                 if (!connectedSheetId || MASTER_GAS_URL.includes('여기에')) {
                     row.remove(); showToast('일정이 임시 삭제되었습니다.'); return;
                 }
-                showToast('서버에서 일정을 삭제하는 중... ⏳');
+// 기존: showToast('서버에서 일정을 삭제하는 중... ⏳');
+showToast('서버에서 일정을 삭제하는 중... ⏳', true); // 💡 끝에 , true 추가
                 
                 fetch(MASTER_GAS_URL, {
                     method: 'POST',
@@ -1237,7 +1239,8 @@ scrollArea.addEventListener('pointerup', (e) => {
             
             for (let i = 0; i < batchSchedules.length; i += CHUNK_SIZE) {
                 const chunk = batchSchedules.slice(i, i + CHUNK_SIZE);
-                showToast(`🚀 일정 일괄 등록 중... (${i + 1} ~ ${Math.min(i + CHUNK_SIZE, batchSchedules.length)} / ${batchSchedules.length}) ⏳`);
+                // 기존: showToast(`🚀 일정 일괄 등록 중... (${i + 1} ~ ... ⏳`);
+showToast(`🚀 일정 일괄 등록 중... (${i + 1} ~ ${Math.min(i + CHUNK_SIZE, batchSchedules.length)} / ${batchSchedules.length}) ⏳`, true); // 💡 끝에 , true 추가
                 
                 try {
                     const res = await fetch(MASTER_GAS_URL, {
