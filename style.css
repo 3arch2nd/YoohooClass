@@ -347,3 +347,18 @@ body {
 .detail-hidden { 
     display: none !important; 
 }
+
+/* 💡 [추가] 토스트 메시지 로딩 점 애니메이션 (. .. ...) */
+.loading-dots::after {
+    content: '...';
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    width: 0px;
+    animation: loading-dots-blink 1.5s steps(4, end) infinite;
+}
+
+@keyframes loading-dots-blink {
+    0% { width: 0px; }
+    100% { width: 1.2em; }
+}
