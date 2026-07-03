@@ -886,13 +886,13 @@ scrollArea.addEventListener('pointerup', (e) => {
         .catch(e => console.error('경고 로드 실패'));
     }
     
-    // 💡 [수정] 표 렌더링 함수 (정확한 층수 추적 로직 추가)
+    // 💡 [수정] 표 렌더링 함수 (층별 정렬 -> 가나다순 정렬 추가)
     function renderScheduleTable(schedules) {
         const tbody = document.getElementById('schedule-tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
         
-        // 1. 중복 일정 검사 (기존 유지)
+        // 1. 중복 일정 검사
         for (let i = 0; i < schedules.length; i++) {
             schedules[i].isOverlapped = false;
             for (let j = 0; j < schedules.length; j++) {
@@ -904,6 +904,27 @@ scrollArea.addEventListener('pointerup', (e) => {
                 }
             }
         }
+
+        // ✨ [핵심 추가 1] 정렬을 위해 각 일정에 '진짜 층수'를 먼저 찾아 넣어줍니다.
+        schedules.forEach(item => {
+            item.actualFloorNum = 999; // 도면에서 못 찾은 방은 맨 아래로 빼기 위한 기본값
+            item.actualFloorStr = '?';
+            for (let floorNum in floorData) {
+                if (floorData[floorNum].some(room => room.name === item.room)) {
+                    item.actualFloorNum = parseInt(floorNum);
+                    item.actualFloorStr = floorNum;
+                    break;
+                }
+            }
+        });
+
+        // ✨ [핵심 추가 2] 층수(오름차순) 정렬 후 -> 같은 층이면 이름(가나다순) 정렬!
+        schedules.sort((a, b) => {
+            if (a.actualFloorNum !== b.actualFloorNum) {
+                return a.actualFloorNum - b.actualFloorNum; // 1층, 2층, 3층 순서
+            }
+            return a.room.localeCompare(b.room, 'ko-KR'); // 층이 같으면 ㄱ, ㄴ, ㄷ 순서
+        });
         
         // 2. 표 그리기
         schedules.forEach(item => {
@@ -913,19 +934,8 @@ scrollArea.addEventListener('pointerup', (e) => {
             const periodsArr = String(item.periods).split(',').map(p => p.trim());
             const safePeriodsHtml = periodsArr.map(p => `<span style="white-space: nowrap;" class="${item.isOverlapped ? 'highlight-text' : ''}">${p}</span>`).join(', ');
 
-            // ✨ [핵심 추가] 전체 도면 데이터(floorData)를 뒤져서 해당 방의 진짜 층수 찾기!
-            let actualFloor = '?';
-            for (let floorNum in floorData) {
-                // 해당 층의 방 목록 중에 현재 방 이름(item.room)이 존재한다면!
-                if (floorData[floorNum].some(room => room.name === item.room)) {
-                    actualFloor = floorNum;
-                    break;
-                }
-            }
-
-            // 렌더링 시 currentFloor 대신 찾아낸 actualFloor를 출력합니다.
             tr.innerHTML = `
-                <td>${actualFloor}층</td>
+                <td>${item.actualFloorStr}층</td>
                 <td>${item.room}</td>
                 <td>${safePeriodsHtml}</td>
                 <td>${item.purpose}</td>
@@ -1028,8 +1038,6 @@ scrollArea.addEventListener('pointerup', (e) => {
     }
     // 🚀 앱 실행 시 초기 데이터 로드 호출
     loadRoomsFromGas();
-    loadScheduleByDate(datePicker.value);
-    loadGlobalWarnings();
 
     // ==========================================
     // 🚀 [새로 추가] 학기별 기본 시간표 일괄 세팅 로직
@@ -1177,6 +1185,9 @@ scrollArea.addEventListener('pointerup', (e) => {
             }
         }
         
+// 💡 [수정] 올바른 맨 끝부분
         // 분할 전송 시작!
         sendBatchSchedules();
     });
+
+}); // ✨ 이렇게 닫아주셔야 파일 전체가 정상 작동합니다!
