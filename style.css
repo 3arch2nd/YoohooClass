@@ -52,7 +52,7 @@ body {
 .settings-btn { margin-top: 10px; width: 60px; height: 40px; border: none; background-color: transparent; color: var(--text-light); cursor: pointer; }
 
 .floor-plan-section { 
-    flex: 2; position: relative; display: flex; flex-direction: column; 
+    flex: 1.7; position: relative; display: flex; flex-direction: column; 
     border-right: 1px solid var(--border-color); min-width: 0; overflow: hidden; 
 }
 .section-header { height: 60px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); background-color: var(--bg-panel); flex-shrink: 0; z-index: 50; }
@@ -138,12 +138,18 @@ body {
     box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 10;
 }
 
-.schedule-section { flex: 1; min-width: 280px; background-color: var(--bg-main); display: flex; flex-direction: column; }
+.schedule-section { flex: 1.3; min-width: 340px; background-color: var(--bg-main); display: flex; flex-direction: column; }
 .date-header { display: flex; align-items: center; justify-content: flex-start; gap: 12px; }
 .date-picker { padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; }
 .formatted-date-text { font-weight: bold; font-size: 15px; color: var(--primary); }
 
-.table-container { padding: 20px; overflow-y: auto; flex: 1; }
+/* 💡 [수정] 표를 감싸는 컨테이너에 스크롤바 여백 강제 고정 */
+.table-container { 
+    padding: 20px; 
+    overflow-y: auto; 
+    flex: 1; 
+    scrollbar-gutter: stable; /* ✨ 마법의 속성! 스크롤바 자리를 항상 비워둡니다 */
+}
 .schedule-table { width: 100%; border-collapse: collapse; }
 .schedule-table th, .schedule-table td { border: 1px solid var(--border-color); padding: 10px 6px; text-align: center; font-size: 13px; }
 .schedule-table th { background-color: var(--bg-panel); font-weight: bold; }
